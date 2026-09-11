@@ -1284,31 +1284,63 @@ local function fishTick()
         return
     end
 
-    local camv = WS.CurrentCamera
-    local camBefore = camv and camv.CFrame
-    local r0 = root()
-    local faceBefore = r0 and r0.CFrame
     local sLook = spotLook(spot)
     if not aimAtWater(sLook) then
-        if camv and camBefore then camv.CFrame = camBefore end
         return
     end
-    tap("PrimaryInput")
-    task.delay(0.35, function()
-        local c2 = WS.CurrentCamera
-        if c2 and camBefore then pcall(function() c2.CFrame = camBefore end) end
-        local rr = root()
-        if rr and faceBefore then pcall(function() rr.CFrame = CFrame.new(rr.Position, rr.Position + faceBefore.LookVector) end) end
-    end)
-    lastCast = os.clock()
-    castPhase = "casted"
-    tappedThisCast = false
-    startBiteWatch()
-    FISH.casts = FISH.casts + 1
-    local baitStr = bait > 0 and (" (bait " .. bait .. ")") or " (no bait)"
-    FISH.status = "cast #" .. FISH.casts .. baitStr
-    logAction("FISH", ("Cast #%d launched towards water%s"):format(FISH.casts, baitStr), Color3.fromRGB(80, 220, 140), "FISHING",
-        ("Spot #%d | Catches: %d"):format(spotIndex, FISH.catches))
+
+    -- Hold PrimaryInput to charge the cast swing instead of a 0.1s micro-tap
+    local c = char()
+    if IH then
+        pcall(function() IH:FireVirtualInput("PrimaryInput", true) end)
+        task.wait(0.65)
+        pcall(function() IH:FireVirtualInput("PrimaryInput", false) end)
+    end
+    local tool = c and c:FindFirstChildOfClass("Tool")
+    if tool and tool:IsA("Tool") then
+        pcall(function() tool:Activate() end)
+    end
+
+    -- Verify that the line actually launched into the water before assuming casted state
+    local castConfirmed = false
+    local tCheck = os.clock()
+    while os.clock() - tCheck < 1.8 and S.running do
+        local a = anims()
+        if a.RodIdle or a.SwingRod then
+            castConfirmed = true
+            break
+        end
+        if c and (c:FindFirstChildOfClass("RopeConstraint", true)
+           or c:FindFirstChildOfClass("RodConstraint", true)
+           or c:FindFirstChildOfClass("Beam", true)
+           or c:FindFirstChild("Bobber", true)
+           or WS:FindFirstChild("Bobber")) then
+            castConfirmed = true
+            break
+        end
+        if a.BringBack then
+            break
+        end
+        task.wait(0.1)
+    end
+
+    if castConfirmed then
+        lastCast = os.clock()
+        castPhase = "casted"
+        tappedThisCast = false
+        startBiteWatch()
+        FISH.casts = FISH.casts + 1
+        local baitStr = bait > 0 and (" (bait " .. bait .. ")") or " (no bait)"
+        FISH.status = "cast #" .. FISH.casts .. baitStr
+        logAction("FISH", ("Cast #%d launched towards water%s"):format(FISH.casts, baitStr), Color3.fromRGB(80, 220, 140), "FISHING",
+            ("Spot #%d | Catches: %d"):format(spotIndex, FISH.catches))
+    else
+        castPhase = "idle"
+        lastCast = 0
+        FISH.status = "cast failed to launch - retrying"
+        logAction("FISH", "Rod did not cast line into water — retrying cast", Color3.fromRGB(245, 160, 60), "FISHING")
+        task.wait(0.5)
+    end
 end
 
 local function startFishing()
