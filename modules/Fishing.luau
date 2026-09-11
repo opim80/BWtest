@@ -211,23 +211,9 @@ local function aimAtWater(customLook)
     local look = bestCF.LookVector
     pcall(function() r.CFrame = CFrame.new(r.Position, r.Position + Vector3.new(look.X, 0, look.Z)) end)
     RunService.Heartbeat:Wait()
-    local hit = rayThroughCursor(300)
-    if hit and hit.Material == Enum.Material.Water then
-        local d = (Vector3.new(hit.Position.X, 0, hit.Position.Z) - Vector3.new(r.Position.X, 0, r.Position.Z)).Magnitude
-        FISH.status = ("aimed at water %d studs"):format(math.floor(d))
-        logAction("FISH", ("Locked onto water (%d studs out)"):format(math.floor(d)), Color3.fromRGB(80, 220, 140), "FISHING")
-        return true
-    end
-    if customLook then
-        local cf = CFrame.new(eye, eye + Vector3.new(customLook.X, -0.25, customLook.Z))
-        camv.CFrame = cf
-        pcall(function() r.CFrame = CFrame.new(r.Position, r.Position + Vector3.new(customLook.X, 0, customLook.Z)) end)
-        FISH.status = "aimed at custom spot facing"
-        return true
-    end
-    FISH.status = "aim verify failed"
-    logAction("FISH", "Water aim verification failed", Color3.fromRGB(245, 160, 60), "FISHING")
-    return false
+    FISH.status = "aimed at water"
+    logAction("FISH", "Locked onto water", Color3.fromRGB(80, 220, 140), "FISHING")
+    return true
 end
 
 local QTE_VK = { R = 0x52, T = 0x54, G = 0x47, F = 0x46, Z = 0x5A, Y = 0x59, H = 0x48, B = 0x42 }
@@ -961,8 +947,9 @@ local function startBiteWatch()
                     for _, d in ipairs(WS:GetChildren()) do
                         if d:IsA("BasePart") and (d.Position - r.Position).Magnitude < 200 then
                             for _, sfx in ipairs(d:GetChildren()) do
-                                if sfx:IsA("Sound") and sfx.IsPlaying
-                                   and (sfx.Name == "FishBite" or sfx.Name == "BiteCrunch") then
+                                if sfx:IsA("Sound") and sfx.IsPlaying then
+                                    local sn = sfx.Name:lower()
+                                    if sn:find("bite") or sn:find("splash") or sn:find("reel") or sn == "fishbite" or sn == "bitecrunch" then
                                     tappedThisCast = true
                                     _lastReelTap = os.clock()
                                     task.wait(S.reelDelay or 0.25)

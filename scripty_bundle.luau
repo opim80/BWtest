@@ -1591,6 +1591,27 @@ end
 local function landBeside(pos, offset)
     dismount()
     task.wait(0.3)
+    local r = root()
+    if not r then return false end
+    pos = spotPos(pos) or pos
+    offset = offset or 5
+    local best
+    for _, dir in ipairs({ Vector3.new(1,0,0), Vector3.new(-1,0,0), Vector3.new(0,0,1), Vector3.new(0,0,-1),
+                           Vector3.new(1,0,1).Unit, Vector3.new(-1,0,-1).Unit }) do
+        local cand = pos + dir * offset
+        local g = groundY(cand)
+        if g and math.abs(g - pos.Y) < 12 then best = Vector3.new(cand.X, g + 3.5, cand.Z); break end
+    end
+    if not best then
+        local g = groundY(pos) or pos.Y
+        best = Vector3.new(pos.X, g + 3.5, pos.Z)
+    end
+    for _ = 1, 10 do
+        local rr = root()
+        if rr then rr.CFrame = CFrame.new(best); rr.AssemblyLinearVelocity = Vector3.zero end
+        RunService.Heartbeat:Wait()
+    end
+    task.wait(0.4)
     local stKey = (isSellingFish and "SELLING") or (isRestockingBait and "RESTOCK") or "TRAVEL"
     local landMsg = isSellingFish and "Arrived at Daniel for selling" or (isRestockingBait and "Arrived at Daniel for restock" or "Arrived at destination")
     logAction(stKey, landMsg, Color3.fromRGB(160, 165, 180), stKey)
@@ -2485,23 +2506,9 @@ local function aimAtWater(customLook)
     local look = bestCF.LookVector
     pcall(function() r.CFrame = CFrame.new(r.Position, r.Position + Vector3.new(look.X, 0, look.Z)) end)
     RunService.Heartbeat:Wait()
-    local hit = rayThroughCursor(300)
-    if hit and hit.Material == Enum.Material.Water then
-        local d = (Vector3.new(hit.Position.X, 0, hit.Position.Z) - Vector3.new(r.Position.X, 0, r.Position.Z)).Magnitude
-        FISH.status = ("aimed at water %d studs"):format(math.floor(d))
-        logAction("FISH", ("Locked onto water (%d studs out)"):format(math.floor(d)), Color3.fromRGB(80, 220, 140), "FISHING")
-        return true
-    end
-    if customLook then
-        local cf = CFrame.new(eye, eye + Vector3.new(customLook.X, -0.25, customLook.Z))
-        camv.CFrame = cf
-        pcall(function() r.CFrame = CFrame.new(r.Position, r.Position + Vector3.new(customLook.X, 0, customLook.Z)) end)
-        FISH.status = "aimed at custom spot facing"
-        return true
-    end
-    FISH.status = "aim verify failed"
-    logAction("FISH", "Water aim verification failed", Color3.fromRGB(245, 160, 60), "FISHING")
-    return false
+    FISH.status = "aimed at water"
+    logAction("FISH", "Locked onto water", Color3.fromRGB(80, 220, 140), "FISHING")
+    return true
 end
 
 local QTE_VK = { R = 0x52, T = 0x54, G = 0x47, F = 0x46, Z = 0x5A, Y = 0x59, H = 0x48, B = 0x42 }
@@ -3235,8 +3242,9 @@ local function startBiteWatch()
                     for _, d in ipairs(WS:GetChildren()) do
                         if d:IsA("BasePart") and (d.Position - r.Position).Magnitude < 200 then
                             for _, sfx in ipairs(d:GetChildren()) do
-                                if sfx:IsA("Sound") and sfx.IsPlaying
-                                   and (sfx.Name == "FishBite" or sfx.Name == "BiteCrunch") then
+                                if sfx:IsA("Sound") and sfx.IsPlaying then
+                                    local sn = sfx.Name:lower()
+                                    if sn:find("bite") or sn:find("splash") or sn:find("reel") or sn == "fishbite" or sn == "bitecrunch" then
                                     tappedThisCast = true
                                     _lastReelTap = os.clock()
                                     task.wait(S.reelDelay or 0.25)

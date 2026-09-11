@@ -340,6 +340,27 @@ end
 local function landBeside(pos, offset)
     dismount()
     task.wait(0.3)
+    local r = root()
+    if not r then return false end
+    pos = spotPos(pos) or pos
+    offset = offset or 5
+    local best
+    for _, dir in ipairs({ Vector3.new(1,0,0), Vector3.new(-1,0,0), Vector3.new(0,0,1), Vector3.new(0,0,-1),
+                           Vector3.new(1,0,1).Unit, Vector3.new(-1,0,-1).Unit }) do
+        local cand = pos + dir * offset
+        local g = groundY(cand)
+        if g and math.abs(g - pos.Y) < 12 then best = Vector3.new(cand.X, g + 3.5, cand.Z); break end
+    end
+    if not best then
+        local g = groundY(pos) or pos.Y
+        best = Vector3.new(pos.X, g + 3.5, pos.Z)
+    end
+    for _ = 1, 10 do
+        local rr = root()
+        if rr then rr.CFrame = CFrame.new(best); rr.AssemblyLinearVelocity = Vector3.zero end
+        RunService.Heartbeat:Wait()
+    end
+    task.wait(0.4)
     local stKey = (isSellingFish and "SELLING") or (isRestockingBait and "RESTOCK") or "TRAVEL"
     local landMsg = isSellingFish and "Arrived at Daniel for selling" or (isRestockingBait and "Arrived at Daniel for restock" or "Arrived at destination")
     logAction(stKey, landMsg, Color3.fromRGB(160, 165, 180), stKey)
