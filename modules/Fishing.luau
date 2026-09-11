@@ -992,8 +992,9 @@ local function startBiteWatch()
             end
             task.wait(0.04)
         end
-        biteWatchStarted = false
-    end)
+    end
+    biteWatchStarted = false
+end)
 end
 
 
