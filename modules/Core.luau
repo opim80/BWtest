@@ -19,13 +19,14 @@ pcall(function()
     local getgc_fn = getgc or get_gc_objects
     local hook_fn = hookfunction or replaceclosure
 
-    if getgc_fn and hook_fn then
-        for _, v in ipairs(getgc_fn(true)) do
+    local function hookAdonis()
+        if not getgc_fn or not hook_fn then return end
+        for _, v in pairs(getgc_fn(true)) do
             if typeof(v) == "table" then
                 local DetectFunc = rawget(v, "Detected")
                 local KillFunc = rawget(v, "Kill")
 
-                if typeof(DetectFunc) == "function" and not Detected then
+                if typeof(DetectFunc) == "function" and not table.find(Hooked, DetectFunc) then
                     Detected = DetectFunc
                     local Old; Old = hook_fn(Detected, function(Action, Info, NoCrash)
                         if Action ~= "_" and DEBUG then
@@ -36,7 +37,7 @@ pcall(function()
                     table.insert(Hooked, Detected)
                 end
 
-                if rawget(v, "Variables") and rawget(v, "Process") and typeof(KillFunc) == "function" and not Kill then
+                if rawget(v, "Variables") and rawget(v, "Process") and typeof(KillFunc) == "function" and not table.find(Hooked, KillFunc) then
                     Kill = KillFunc
                     local Old; Old = hook_fn(Kill, function(Info)
                         if DEBUG then
@@ -48,6 +49,8 @@ pcall(function()
             end
         end
     end
+
+    hookAdonis()
 
     if getrenv and getrenv().debug and getrenv().debug.info and hook_fn then
         local Old; Old = hook_fn(getrenv().debug.info, newcclosure(function(...)
@@ -63,6 +66,16 @@ pcall(function()
     end
 
     if setidentity then pcall(setidentity, 7) end
+
+    task.spawn(function()
+        while task.wait(2) do
+            pcall(function()
+                if setidentity then setidentity(2) end
+                hookAdonis()
+                if setidentity then setidentity(7) end
+            end)
+        end
+    end)
 end)
 
 

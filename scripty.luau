@@ -4,6 +4,78 @@
 -- Clean Modular Architecture
 -- ============================================================
 
+-- ── ADONIS ANTICHEAT BYPASS (RAW & UN-PCALLED) ─────────────────────────────
+do
+    local getinfo = getinfo or debug.getinfo
+    local DEBUG = false
+    local Hooked = {}
+    local Detected, Kill
+
+    local setidentity = setthreadidentity or set_thread_identity or setidentity or (syn and syn.set_thread_identity)
+    if setidentity then pcall(setidentity, 2) end
+
+    local getgc_fn = getgc or get_gc_objects
+    local hook_fn = hookfunction or replaceclosure
+
+    local function hookAdonis()
+        if not getgc_fn or not hook_fn then return end
+        for _, v in pairs(getgc_fn(true)) do
+            if typeof(v) == "table" then
+                local DetectFunc = rawget(v, "Detected")
+                local KillFunc = rawget(v, "Kill")
+
+                if typeof(DetectFunc) == "function" and not table.find(Hooked, DetectFunc) then
+                    Detected = DetectFunc
+                    local Old; Old = hook_fn(Detected, function(Action, Info, NoCrash)
+                        if Action ~= "_" and DEBUG then
+                            warn("Adonis AntiCheat flagged\nMethod: " .. tostring(Action) .. "\nInfo: " .. tostring(Info))
+                        end
+                        return true
+                    end)
+                    table.insert(Hooked, Detected)
+                end
+
+                if rawget(v, "Variables") and rawget(v, "Process") and typeof(KillFunc) == "function" and not table.find(Hooked, KillFunc) then
+                    Kill = KillFunc
+                    local Old; Old = hook_fn(Kill, function(Info)
+                        if DEBUG then
+                            warn("Adonis AntiCheat tried to kill (fallback): " .. tostring(Info))
+                        end
+                    end)
+                    table.insert(Hooked, Kill)
+                end
+            end
+        end
+    end
+
+    hookAdonis()
+
+    if getrenv and getrenv().debug and getrenv().debug.info and hook_fn then
+        local Old; Old = hook_fn(getrenv().debug.info, newcclosure(function(...)
+            local LevelOrFunc, Info = ...
+            if Detected and LevelOrFunc == Detected then
+                if DEBUG then
+                    warn("Adonis Bypassed!")
+                end
+                return coroutine.yield(coroutine.running())
+            end
+            return Old(...)
+        end))
+    end
+
+    if setidentity then pcall(setidentity, 7) end
+
+    task.spawn(function()
+        while task.wait(2) do
+            pcall(function()
+                if setidentity then setidentity(2) end
+                hookAdonis()
+                if setidentity then setidentity(7) end
+            end)
+        end
+    end)
+end
+
 -- Guard against multiple simultaneous executions
 if getgenv().BW3_Unload then
     pcall(getgenv().BW3_Unload)

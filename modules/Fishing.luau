@@ -2310,12 +2310,12 @@ local function fishTick()
         return
     end
     tap("PrimaryInput", 0.35)
-    local ml = cursorPos()
     pcall(function()
-        local vim = game:GetService("VirtualInputManager")
-        vim:SendMouseButtonEvent(ml.X, ml.Y, 0, true, game, 0)
-        task.wait(0.35)
-        vim:SendMouseButtonEvent(ml.X, ml.Y, 0, false, game, 0)
+        if mouse1press and mouse1release then
+            mouse1press()
+            task.wait(0.35)
+            mouse1release()
+        end
     end)
     task.wait(0.7)
     if not isRodCast() then

@@ -276,13 +276,18 @@ local function dismount()
         tap("HorseDismountInput", 0.15)
         tap("ActionInput2", 0.15)
         pcall(function()
-            local vim = game:GetService("VirtualInputManager")
-            vim:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
-            task.wait(0.04)
-            vim:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
-            vim:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-            task.wait(0.04)
-            vim:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+            if keyclickFn then
+                keyclickFn(0x20)
+                task.wait(0.04)
+                keyclickFn(0x45)
+            elseif keypressFn and keyreleaseFn then
+                keypressFn(0x20)
+                task.wait(0.04)
+                keyreleaseFn(0x20)
+                keypressFn(0x45)
+                task.wait(0.04)
+                keyreleaseFn(0x45)
+            end
         end)
         if hObj and firepp then
             for _, d in ipairs(hObj:GetDescendants()) do

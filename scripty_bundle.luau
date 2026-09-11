@@ -11,6 +11,78 @@
 -- Clean Modular Architecture
 -- ============================================================
 
+-- ── ADONIS ANTICHEAT BYPASS (RAW & UN-PCALLED) ─────────────────────────────
+do
+    local getinfo = getinfo or debug.getinfo
+    local DEBUG = false
+    local Hooked = {}
+    local Detected, Kill
+
+    local setidentity = setthreadidentity or set_thread_identity or setidentity or (syn and syn.set_thread_identity)
+    if setidentity then pcall(setidentity, 2) end
+
+    local getgc_fn = getgc or get_gc_objects
+    local hook_fn = hookfunction or replaceclosure
+
+    local function hookAdonis()
+        if not getgc_fn or not hook_fn then return end
+        for _, v in pairs(getgc_fn(true)) do
+            if typeof(v) == "table" then
+                local DetectFunc = rawget(v, "Detected")
+                local KillFunc = rawget(v, "Kill")
+
+                if typeof(DetectFunc) == "function" and not table.find(Hooked, DetectFunc) then
+                    Detected = DetectFunc
+                    local Old; Old = hook_fn(Detected, function(Action, Info, NoCrash)
+                        if Action ~= "_" and DEBUG then
+                            warn("Adonis AntiCheat flagged\nMethod: " .. tostring(Action) .. "\nInfo: " .. tostring(Info))
+                        end
+                        return true
+                    end)
+                    table.insert(Hooked, Detected)
+                end
+
+                if rawget(v, "Variables") and rawget(v, "Process") and typeof(KillFunc) == "function" and not table.find(Hooked, KillFunc) then
+                    Kill = KillFunc
+                    local Old; Old = hook_fn(Kill, function(Info)
+                        if DEBUG then
+                            warn("Adonis AntiCheat tried to kill (fallback): " .. tostring(Info))
+                        end
+                    end)
+                    table.insert(Hooked, Kill)
+                end
+            end
+        end
+    end
+
+    hookAdonis()
+
+    if getrenv and getrenv().debug and getrenv().debug.info and hook_fn then
+        local Old; Old = hook_fn(getrenv().debug.info, newcclosure(function(...)
+            local LevelOrFunc, Info = ...
+            if Detected and LevelOrFunc == Detected then
+                if DEBUG then
+                    warn("Adonis Bypassed!")
+                end
+                return coroutine.yield(coroutine.running())
+            end
+            return Old(...)
+        end))
+    end
+
+    if setidentity then pcall(setidentity, 7) end
+
+    task.spawn(function()
+        while task.wait(2) do
+            pcall(function()
+                if setidentity then setidentity(2) end
+                hookAdonis()
+                if setidentity then setidentity(7) end
+            end)
+        end
+    end)
+end
+
 -- Guard against multiple simultaneous executions
 if getgenv().BW3_Unload then
     pcall(getgenv().BW3_Unload)
@@ -73,13 +145,14 @@ pcall(function()
     local getgc_fn = getgc or get_gc_objects
     local hook_fn = hookfunction or replaceclosure
 
-    if getgc_fn and hook_fn then
-        for _, v in ipairs(getgc_fn(true)) do
+    local function hookAdonis()
+        if not getgc_fn or not hook_fn then return end
+        for _, v in pairs(getgc_fn(true)) do
             if typeof(v) == "table" then
                 local DetectFunc = rawget(v, "Detected")
                 local KillFunc = rawget(v, "Kill")
 
-                if typeof(DetectFunc) == "function" and not Detected then
+                if typeof(DetectFunc) == "function" and not table.find(Hooked, DetectFunc) then
                     Detected = DetectFunc
                     local Old; Old = hook_fn(Detected, function(Action, Info, NoCrash)
                         if Action ~= "_" and DEBUG then
@@ -90,7 +163,7 @@ pcall(function()
                     table.insert(Hooked, Detected)
                 end
 
-                if rawget(v, "Variables") and rawget(v, "Process") and typeof(KillFunc) == "function" and not Kill then
+                if rawget(v, "Variables") and rawget(v, "Process") and typeof(KillFunc) == "function" and not table.find(Hooked, KillFunc) then
                     Kill = KillFunc
                     local Old; Old = hook_fn(Kill, function(Info)
                         if DEBUG then
@@ -102,6 +175,8 @@ pcall(function()
             end
         end
     end
+
+    hookAdonis()
 
     if getrenv and getrenv().debug and getrenv().debug.info and hook_fn then
         local Old; Old = hook_fn(getrenv().debug.info, newcclosure(function(...)
@@ -117,6 +192,16 @@ pcall(function()
     end
 
     if setidentity then pcall(setidentity, 7) end
+
+    task.spawn(function()
+        while task.wait(2) do
+            pcall(function()
+                if setidentity then setidentity(2) end
+                hookAdonis()
+                if setidentity then setidentity(7) end
+            end)
+        end
+    end)
 end)
 
 
@@ -1427,13 +1512,18 @@ local function dismount()
         tap("HorseDismountInput", 0.15)
         tap("ActionInput2", 0.15)
         pcall(function()
-            local vim = game:GetService("VirtualInputManager")
-            vim:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
-            task.wait(0.04)
-            vim:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
-            vim:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-            task.wait(0.04)
-            vim:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+            if keyclickFn then
+                keyclickFn(0x20)
+                task.wait(0.04)
+                keyclickFn(0x45)
+            elseif keypressFn and keyreleaseFn then
+                keypressFn(0x20)
+                task.wait(0.04)
+                keyreleaseFn(0x20)
+                keypressFn(0x45)
+                task.wait(0.04)
+                keyreleaseFn(0x45)
+            end
         end)
         if hObj and firepp then
             for _, d in ipairs(hObj:GetDescendants()) do
@@ -4452,12 +4542,12 @@ local function fishTick()
         return
     end
     tap("PrimaryInput", 0.35)
-    local ml = cursorPos()
     pcall(function()
-        local vim = game:GetService("VirtualInputManager")
-        vim:SendMouseButtonEvent(ml.X, ml.Y, 0, true, game, 0)
-        task.wait(0.35)
-        vim:SendMouseButtonEvent(ml.X, ml.Y, 0, false, game, 0)
+        if mouse1press and mouse1release then
+            mouse1press()
+            task.wait(0.35)
+            mouse1release()
+        end
     end)
     task.wait(0.7)
     if not isRodCast() then
