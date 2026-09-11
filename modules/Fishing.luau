@@ -942,32 +942,40 @@ local function startBiteWatch()
         while S.running do
             if S.autoFish and castPhase == "casted" and not tappedThisCast
                and os.clock() - lastCast > 1.5 then
-                local c = char
-                if c then
-                    local function isBiteSound(s)
-                        if not s:IsA("Sound") or not s.IsPlaying then return false end
-                        local n = s.Name
-                        return n == "FishBite" or n == "BiteCrunch" or n == "Splash" or n == "Reel" or n == "Bite" or n == "fishbite" or n == "bitecrunch"
-                    end
-                    local foundBite = false
-                    for _, sfx in ipairs(c:GetDescendants()) do
-                        if isBiteSound(sfx) then
-                            foundBite = true
-                            break
-                        end
-                    end
-                    if not foundBite then
-                        local bobber = WS:FindFirstChild("Bobber") or WS:FindFirstChild(LP.Name .. "Bobber")
-                        if bobber then
-                            for _, sfx in ipairs(bobber:GetDescendants()) do
-                                if isBiteSound(sfx) then
-                                    foundBite = true
+                local r = root()
+                local c = char()
+                if r then
+                    local detected = false
+                    if c then
+                        for _, sfx in ipairs(c:GetDescendants()) do
+                            if sfx:IsA("Sound") and sfx.IsPlaying then
+                                local sn = sfx.Name:lower()
+                                if sn:find("bite") or sn:find("splash") or sn:find("reel") or sn == "fishbite" or sn == "bitecrunch" then
+                                    detected = true
                                     break
                                 end
                             end
                         end
                     end
-                    if foundBite then
+                    if not detected then
+                        local op = OverlapParams.new()
+                        op.MaxParts = 25
+                        local nearby = WS:GetPartBoundsInRadius(r.Position, 75, op)
+                        for _, d in ipairs(nearby) do
+                            for _, sfx in ipairs(d:GetChildren()) do
+                                if sfx:IsA("Sound") and sfx.IsPlaying then
+                                    local sn = sfx.Name:lower()
+                                    if sn:find("bite") or sn:find("splash") or sn:find("reel") or sn == "fishbite" or sn == "bitecrunch" then
+                                        detected = true
+                                        break
+                                    end
+                                end
+                            end
+                            if detected then break end
+                        end
+                    end
+
+                    if detected then
                         tappedThisCast = true
                         _lastReelTap = os.clock()
                         task.wait(S.reelDelay or 0.25)
@@ -1003,7 +1011,7 @@ local function startBiteWatch()
                     end
                 end
             end
-            task.wait(0.1)
+            task.wait(0.08)
         end
     end
     biteWatchStarted = false
