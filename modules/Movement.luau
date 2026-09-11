@@ -274,7 +274,28 @@ local function dismount()
     for _ = 1, 6 do
         if not isMounted(hObj) and not (hm and hm.Sit) then break end
         tap("HorseDismountInput", 0.15)
+        tap("ActionInput2", 0.15)
+        pcall(function()
+            local vim = game:GetService("VirtualInputManager")
+            vim:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+            task.wait(0.04)
+            vim:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+            vim:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+            task.wait(0.04)
+            vim:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+        end)
+        if hObj and firepp then
+            for _, d in ipairs(hObj:GetDescendants()) do
+                if d:IsA("ProximityPrompt") and d.Enabled then
+                    pcall(firepp, d, 0)
+                end
+            end
+        end
         if hm then
+            if hm.SeatPart then
+                local sw = hm.SeatPart:FindFirstChild("SeatWeld")
+                if sw then pcall(function() sw:Destroy() end) end
+            end
             hm.Sit = false
             pcall(function() hm:ChangeState(Enum.HumanoidStateType.GettingUp) end)
             hm.Jump = true

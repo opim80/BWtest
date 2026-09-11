@@ -1252,10 +1252,10 @@ local function aimAtWater()
             local cf = CFrame.new(eye) * CFrame.Angles(0, math.rad(yawDeg), 0) * CFrame.Angles(math.rad(pitchDeg), 0, 0)
             local dir = rayDirFor(cf, ml.X, ml.Y)
             local hit = WS:Raycast(eye, dir * 200, rp)
-            if hit and hit.Material == Enum.Material.Water then
+            if hit and (hit.Material == Enum.Material.Water or (hit.Instance and hit.Instance.Name:lower():find("water"))) then
                 local d = (Vector3.new(hit.Position.X, 0, hit.Position.Z) - Vector3.new(eye.X, 0, eye.Z)).Magnitude
-                if d > 40 and d < 120 then
-                    local score = math.abs(d - 75)
+                if d > 12 and d < 120 then
+                    local score = math.abs(d - 65)
                     if not bestD or score < bestD then bestCF, bestD = cf, score end
                 end
             end
@@ -1271,7 +1271,7 @@ local function aimAtWater()
     pcall(function() r.CFrame = CFrame.new(r.Position, r.Position + Vector3.new(look.X, 0, look.Z)) end)
     RunService.Heartbeat:Wait()
     local hit = rayThroughCursor(300)
-    if hit and hit.Material == Enum.Material.Water then
+    if hit and (hit.Material == Enum.Material.Water or (hit.Instance and hit.Instance.Name:lower():find("water"))) then
         local d = (Vector3.new(hit.Position.X, 0, hit.Position.Z) - Vector3.new(r.Position.X, 0, r.Position.Z)).Magnitude
         FISH.status = ("aimed at water %d studs"):format(math.floor(d))
         logAction("FISH", ("Locked onto water (%d studs out)"):format(math.floor(d)), Color3.fromRGB(80, 220, 140), "FISHING")
@@ -2061,6 +2061,28 @@ local function startBiteWatch()
     end)
 end
 
+local function isRodCast()
+    local a = anims()
+    if a.SwingRod or a.RodIdle or a.ReelLoop then return true end
+    local c = char()
+    local rod = c and c:FindFirstChildWhichIsA("Tool")
+    if rod then
+        for _, d in ipairs(rod:GetDescendants()) do
+            if d:IsA("RopeConstraint") or d:IsA("RodConstraint") or d:IsA("Beam") then
+                return true
+            end
+            if (d.Name:lower():find("bobber") or d.Name:lower():find("line")) and d:IsA("BasePart") then
+                local r = root()
+                if r and (d.Position - r.Position).Magnitude > 6 then
+                    return true
+                end
+            end
+        end
+        if rod:GetAttribute("Cast") or rod:GetAttribute("Casted") then return true end
+    end
+    return false
+end
+
 local function fishTick()
     if not S.running or not S.autoFish then return end
     local r = root()
@@ -2260,6 +2282,14 @@ local function fishTick()
         return
     end
 
+    local hObj = myHorse()
+    if isMounted(hObj) or (h and h.Sit) then
+        FISH.status = "dismounting horse..."
+        dismount()
+        task.wait(0.3)
+        return
+    end
+
     local spot = FISH_SPOTS[spotIndex]
     if r and (r.Position - spot).Magnitude > 35 then
         if FISH.isWalking then
@@ -2276,21 +2306,25 @@ local function fishTick()
         end
         return
     end
-    local camv = WS.CurrentCamera
-    local camBefore = camv and camv.CFrame
-    local r0 = root()
-    local faceBefore = r0 and r0.CFrame
     if not aimAtWater() then
-        if camv and camBefore then camv.CFrame = camBefore end
         return
     end
-    tap("PrimaryInput")
-    task.delay(0.35, function()
-        local c2 = WS.CurrentCamera
-        if c2 and camBefore then pcall(function() c2.CFrame = camBefore end) end
-        local rr = root()
-        if rr and faceBefore then pcall(function() rr.CFrame = CFrame.new(rr.Position, rr.Position + faceBefore.LookVector) end) end
+    tap("PrimaryInput", 0.35)
+    local ml = cursorPos()
+    pcall(function()
+        local vim = game:GetService("VirtualInputManager")
+        vim:SendMouseButtonEvent(ml.X, ml.Y, 0, true, game, 0)
+        task.wait(0.35)
+        vim:SendMouseButtonEvent(ml.X, ml.Y, 0, false, game, 0)
     end)
+    task.wait(0.7)
+    if not isRodCast() then
+        FISH.status = "cast not detected - recasting"
+        logAction("FISH", "Cast not detected on rod - recasting immediately", Color3.fromRGB(245, 160, 60), "FISHING")
+        castPhase = "idle"
+        lastCast = 0
+        return
+    end
     lastCast = os.clock()
     castPhase = "casted"
     tappedThisCast = false
@@ -2309,26 +2343,6 @@ local function startFishing()
     FISH.status = "starting"
     logAction("FISH", "Starting Auto-Fish routine...", Color3.fromRGB(80, 220, 140), "FISHING")
     loop("autoFish", 0.25, fishTick)
-    task.spawn(function()
-        local spot = FISH_SPOTS[spotIndex]
-        if not spot then return end
-        local t0 = os.clock()
-        while os.clock() - t0 < 15 and S.running and S.autoFish do
-            local r = root()
-            if r and r.Parent then break end
-            task.wait(0.5)
-        end
-        if not S.running or not S.autoFish then return end
-        local reached
-        if S.legitFishing then
-            reached = FISH.walkToSpotLegit(spot)
-        else
-            reached = horseTeleport(spot)
-            if reached then
-                landBeside(spot, 3)
-            end
-        end
-    end)
 end
 getgenv().BW3_BuyBait = function() return buyBait() end
 getgenv().BW3_SellFish = function() return sellAllFish() end
