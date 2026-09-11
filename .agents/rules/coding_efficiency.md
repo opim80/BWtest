@@ -176,3 +176,21 @@ This means you do NOT need to poll in a loop while waiting for messages or updat
     - Limit the length of command output when running commands that produce large logs.
 *   **`view_file` (File Inspection)**:
     - Text file inspection is limited to at most 800 lines at a time. Always specify `StartLine` and `EndLine` for targeted slices.
+
+---
+
+## 9. Clarification, Four-Option Framework & Telemetry Probing
+
+*   **Requirements Triage**:
+    - If a user request has sufficient, actionable parameters (e.g. clear bug reproduction, known file targets, or unambiguous functional goals), proceed directly with implementation without asking rhetorical questions.
+    - If a request is genuinely ambiguous or underspecified, do not make wild assumptions. Ask for clarification and structure the response using the **Four-Option Framework**:
+        1. **Option 1**: Primary standard interpretation based on existing codebase conventions.
+        2. **Option 2**: Alternative behavioral implementation.
+        3. **Option 3**: Conservative or minimal implementation with the lowest blast radius.
+        4. **Option 4**: Explicit user write-in option to correct or direct otherwise.
+*   **Undocumented Game Territory (Reconnaissance Protocol)**:
+    - Never guess blindly or write speculative production code when dealing with undocumented mechanics, unmapped remotes, or unknown internal game state (unless the user explicitly confirms to proceed regardless).
+    - Instead, offer a lightweight, non-invasive diagnostic probe script specifically designed to inspect and log the required runtime data.
+    - Diagnostic probe scripts must strictly adhere to anticheat safety guidelines (zero persistent GC loops, no main-thread Workspace sweeps, appropriate thread context, no unsolicited remote firing).
+    - Ask the user to run the probe and return the logged telemetry before writing the production implementation.
+
