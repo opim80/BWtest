@@ -10,7 +10,7 @@ A modular, high-performance automation and combat framework for Roblox.
 Zero external dependencies. Works out-of-the-box in any Luau executor:
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/USERNAME/REPO/main/scripty_bundle.luau"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/opim80/BWtest/main/scripty_bundle.luau"))()
 ```
 
 ### Option 2: Modular Web Loader
@@ -18,10 +18,10 @@ Loads all 13 modules dynamically from GitHub and caches them locally:
 
 ```lua
 -- Optional: override default repository
-getgenv().BW_GITHUB_REPO = "USERNAME/REPO"
+getgenv().BW_GITHUB_REPO = "opim80/BWtest"
 getgenv().BW_GITHUB_BRANCH = "main"
 
-loadstring(game:HttpGet("https://raw.githubusercontent.com/USERNAME/REPO/main/scripty.luau"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/opim80/BWtest/main/scripty.luau"))()
 ```
 
 ---
