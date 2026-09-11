@@ -23,6 +23,27 @@ local function tap(alias, hold)
     return true
 end
 
+local function spotPos(s)
+    if not s then return nil end
+    if typeof(s) == "Vector3" then return s end
+    if typeof(s) == "CFrame" then return s.Position end
+    if type(s) == "table" then
+        if s.pos then return s.pos end
+        if #s >= 3 then return Vector3.new(s[1], s[2], s[3]) end
+    end
+    return nil
+end
+
+local function spotLook(s)
+    if not s then return nil end
+    if typeof(s) == "CFrame" then return s.LookVector end
+    if type(s) == "table" then
+        if s.look then return s.look end
+        if #s >= 6 then return Vector3.new(s[4], s[5], s[6]) end
+    end
+    return nil
+end
+
 -- ── inventory helpers ───────────────────────────────────────────────────────
 local function baseName(n) return string.split(n, " (")[1] end
 
@@ -279,4 +300,6 @@ return {
     FISH = FISH,
     lastCatchTime = lastCatchTime,
     lastKnownFishTotal = lastKnownFishTotal,
+    spotPos = spotPos,
+    spotLook = spotLook,
 }

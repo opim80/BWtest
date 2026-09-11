@@ -339,10 +339,11 @@ do
             local row = slotRows[i]
             if row then
                 local pt = spotsList[i]
-                if pt and typeof(pt) == "Vector3" then
-                    row.coords.Text = string.format("X: %.0f, Y: %.0f, Z: %.0f", pt.X, pt.Y, pt.Z)
+                local p = spotPos(pt)
+                if p then
+                    row.coords.Text = string.format("X: %.0f, Y: %.0f, Z: %.0f", p.X, p.Y, p.Z)
                     if myPos then
-                        local d = math.floor((pt - myPos).Magnitude)
+                        local d = math.floor((p - myPos).Magnitude)
                         if d <= 4 then
                             row.dist.Text = "● Standing Here"
                             row.dist.TextColor3 = TH.green
@@ -386,7 +387,8 @@ do
         saveStagingBtn.Text = string.format("Save Staging ('%s')", activeName)
 
         local curSpot = spotsList[slotIdx]
-        local spotDist = (curSpot and myPos) and math.floor((curSpot - myPos).Magnitude) or nil
+        local curPos = spotPos(curSpot)
+        local spotDist = (curPos and myPos) and math.floor((curPos - myPos).Magnitude) or nil
         if spotDist then
             goToBtn.Text = string.format("Travel Slot #%d (%dm)", slotIdx, spotDist)
         else
@@ -487,7 +489,10 @@ do
 
         if not S.fishingSets then S.fishingSets = {} :: any end
         if not S.fishingSets[activeName] then S.fishingSets[activeName] = {} end
-        S.fishingSets[activeName][slot] = r.Position
+        S.fishingSets[activeName][slot] = {
+            pos = r.Position,
+            look = r.CFrame.LookVector,
+        }
         FISH_SPOTS = S.fishingSets[activeName]
         spotIndex = slot
 
@@ -498,7 +503,7 @@ do
         saveBtn.BackgroundColor3 = Color3.fromRGB(40, 165, 80)
         saveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 
-        local confirmMsg = string.format("✓ Saved position to '%s' - Slot #%d: (%.1f, %.1f, %.1f)!",
+        local confirmMsg = string.format("✓ Saved position & facing to '%s' - Slot #%d: (%.1f, %.1f, %.1f)!",
             activeName, slot, r.Position.X, r.Position.Y, r.Position.Z)
         feedbackLabel.Text = confirmMsg
         feedbackLabel.TextColor3 = TH.green
@@ -540,14 +545,24 @@ do
             feedbackLabel.TextColor3 = TH.red
             return
         end
+        local p = spotPos(spot)
+        local l = spotLook(spot)
+        if not p then return end
         spotIndex = slot
         feedbackLabel.Text = string.format("▶ Traveling to Set '%s' Slot #%d...", activeName, slot)
         feedbackLabel.TextColor3 = TH.blue
         logAction("TRAVEL", string.format("Traveling to fishing spot #%d in '%s'...", slot, activeName), TH.blue, "TRAVEL")
         if S.legitFishing then
-            FISH.walkToSpotLegit(spot)
+            FISH.walkToSpotLegit(p)
         else
-            if horseTeleport(spot) then landBeside(spot, 3) end
+            if horseTeleport(p) then
+                landBeside(p, 3)
+                if l and root() then
+                    pcall(function()
+                        root().CFrame = CFrame.new(root().Position, root().Position + Vector3.new(l.X, 0, l.Z))
+                    end)
+                end
+            end
         end
         refreshSpotsUI()
     end))
@@ -562,10 +577,21 @@ do
         feedbackLabel.TextColor3 = TH.blue
         logAction("TRAVEL", string.format("Rotating to fishing spot #%d...", spotIndex), TH.blue, "TRAVEL")
         if spot then
-            if S.legitFishing then
-                FISH.walkToSpotLegit(spot)
-            else
-                if horseTeleport(spot) then landBeside(spot, 3) end
+            local p = spotPos(spot)
+            local l = spotLook(spot)
+            if p then
+                if S.legitFishing then
+                    FISH.walkToSpotLegit(p)
+                else
+                    if horseTeleport(p) then
+                        landBeside(p, 3)
+                        if l and root() then
+                            pcall(function()
+                                root().CFrame = CFrame.new(root().Position, root().Position + Vector3.new(l.X, 0, l.Z))
+                            end)
+                        end
+                    end
+                end
             end
         end
         refreshSpotsUI()
@@ -577,11 +603,13 @@ do
         local spotsList = (S.fishingSets and S.fishingSets[activeName]) or FISH_SPOTS or {}
         local spot = spotsList[slot]
         if not spot then return end
+        local p = spotPos(spot)
+        if not p then return end
         FISH.ensureViz()
-        FISH.viz.targetSpot = spot
+        FISH.viz.targetSpot = p
         local r = root()
-        local myPos = r and r.Position or spot
-        local d = math.floor((spot - myPos).Magnitude)
+        local myPos = r and r.Position or p
+        local d = math.floor((p - myPos).Magnitude)
         FISH.viz.currentAction = string.format("Previewing Legit Route to Spot #%d (%dm away)", slot, d)
         feedbackLabel.Text = string.format("👁 Previewing route to Spot #%d (%dm away)", slot, d)
         feedbackLabel.TextColor3 = TH.accent

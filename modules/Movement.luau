@@ -198,6 +198,8 @@ end
 
 -- DIRECT TELEPORT PROHIBITED: ALL TRAVEL REQUIRES GENUINELY MOUNTED HORSE
 local function horseTeleport(dest)
+    dest = spotPos(dest)
+    if not dest then return false end
     if typeof(dest) == "CFrame" then dest = dest.Position end
     local r = root()
     if not r then return false end
@@ -271,6 +273,8 @@ local function dismount()
     logAction(stKey, "Dismounting horse...", Color3.fromRGB(160, 165, 180), stKey)
     local hm = hum()
     local hObj = myHorse()
+    local c = char()
+    local r = root()
     for _ = 1, 6 do
         if not isMounted(hObj) and not (hm and hm.Sit) then break end
         tap("HorseDismountInput", 0.15)
@@ -296,14 +300,37 @@ local function dismount()
                 end
             end
         end
+        if c and hObj then
+            for _, d in ipairs(c:GetDescendants()) do
+                if d:IsA("Weld") or d:IsA("WeldConstraint") or d:IsA("Motor6D") then
+                    if (d.Part0 and d.Part0:IsDescendantOf(hObj)) or (d.Part1 and d.Part1:IsDescendantOf(hObj)) then
+                        pcall(function() d:Destroy() end)
+                    end
+                end
+            end
+            for _, d in ipairs(hObj:GetDescendants()) do
+                if d:IsA("Weld") or d:IsA("WeldConstraint") or d:IsA("Motor6D") then
+                    if (d.Part0 and d.Part0:IsDescendantOf(c)) or (d.Part1 and d.Part1:IsDescendantOf(c)) then
+                        pcall(function() d:Destroy() end)
+                    end
+                end
+            end
+        end
         if hm then
             if hm.SeatPart then
-                local sw = hm.SeatPart:FindFirstChild("SeatWeld")
-                if sw then pcall(function() sw:Destroy() end) end
+                for _, ch in ipairs(hm.SeatPart:GetChildren()) do
+                    if ch:IsA("Weld") or ch:IsA("WeldConstraint") or ch.Name == "SeatWeld" then
+                        pcall(function() ch:Destroy() end)
+                    end
+                end
             end
             hm.Sit = false
             pcall(function() hm:ChangeState(Enum.HumanoidStateType.GettingUp) end)
+            pcall(function() hm:ChangeState(Enum.HumanoidStateType.Jumping) end)
             hm.Jump = true
+        end
+        if r then
+            pcall(function() r.CFrame = r.CFrame + Vector3.new(0, 3, 0) end)
         end
         task.wait(0.25)
     end

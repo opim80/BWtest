@@ -42,8 +42,14 @@ local function saveConfig()
                 rawSets[tostring(setName)] = {}
                 for slotIdx = 1, 3 do
                     local pt = list[slotIdx]
-                    if typeof(pt) == "Vector3" then
-                        table.insert(rawSets[tostring(setName)], { pt.X, pt.Y, pt.Z })
+                    local p = spotPos(pt)
+                    local l = spotLook(pt)
+                    if p then
+                        if l then
+                            table.insert(rawSets[tostring(setName)], { p.X, p.Y, p.Z, l.X, l.Y, l.Z })
+                        else
+                            table.insert(rawSets[tostring(setName)], { p.X, p.Y, p.Z })
+                        end
                     end
                 end
             end
@@ -95,8 +101,20 @@ local function loadConfig()
             if type(rawList) == "table" and #rawList > 0 then
                 S.fishingSets[sName] = {}
                 for _, pt in ipairs(rawList) do
-                    if type(pt) == "table" and #pt >= 3 then
-                        table.insert(S.fishingSets[sName], Vector3.new(pt[1], pt[2], pt[3]))
+                    if type(pt) == "table" then
+                        local pos, look
+                        if #pt >= 3 then
+                            pos = Vector3.new(pt[1], pt[2], pt[3])
+                            if #pt >= 6 then
+                                look = Vector3.new(pt[4], pt[5], pt[6])
+                            end
+                        elseif pt.pos then
+                            pos = spotPos(pt.pos)
+                            look = spotLook(pt.look)
+                        end
+                        if pos then
+                            table.insert(S.fishingSets[sName], { pos = pos, look = look })
+                        end
                     end
                 end
             end
