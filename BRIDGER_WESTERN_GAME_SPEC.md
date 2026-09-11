@@ -337,9 +337,122 @@ Corpse parts are special event items:
 
 ---
 
-## 9. Client Security & Anti-Cheat Environment
+## 9. Client Security & Anti-Cheat Environment (Adonis In-Depth)
 
-The client environment incorporates **Adonis AntiCheat**:
-- **Garbage Collection**: Scans GC tables containing keys `Detected`, `Kill`, `Variables`, and `Process`.
-- **Thread Security**: Scripts modifying client memory should ensure execution under thread identity `7` to match executor privileges.
-- **debug.info Hooking**: Client scripts hook `debug.info` to mask unauthorized script closures from stack traces.
+The client environment incorporates a customized **Adonis AntiCheat** implementation. Handling it incorrectly leads to immediate client termination (`Crash: Anti-Cheat Tamper` or `Kicked: Unexpected Client State`).
+
+### The Raw Adonis Bypass (The Golden Rule)
+At the absolute top of any bundled script, the raw base bypass must execute **unmodified, un-pcalled, and without asynchronous wrapping**:
+
+```lua
+-- ── ADONIS ANTICHEAT BYPASS (RAW & UN-PCALLED) ─────────────────────────────
+do
+    local getinfo = getinfo or debug.getinfo
+    local DEBUG = false
+    local Hooked = {}
+    local Detected, Kill
+
+    setthreadidentity(2)
+
+    for i, v in getgc(true) do
+        if typeof(v) == "table" then
+            local DetectFunc = rawget(v, "Detected")
+            local KillFunc = rawget(v, "Kill")
+
+            if typeof(DetectFunc) == "function" and not Detected then
+                Detected = DetectFunc
+                local Old; Old = hookfunction(Detected, function(Action, Info, NoCrash)
+                    if Action ~= "_" then
+                        if DEBUG then warn(`Adonis AntiCheat: {Action}`) end
+                        return true
+                    end
+                    return Old(Action, Info, NoCrash)
+                end)
+                table.insert(Hooked, Detected)
+            end
+
+            if typeof(KillFunc) == "function" and not Kill then
+                Kill = KillFunc
+                local Old; Old = hookfunction(Kill, function(Info)
+                    if DEBUG then warn(`Adonis AntiCheat: {Info}`) end
+                    return true
+                end)
+                table.insert(Hooked, Kill)
+            end
+        end
+    end
+
+    hookfunction(getrenv().debug.info, newcclosure(function(...)
+        local LevelOrFunc, Info = ...
+        if Detected and LevelOrFunc == Detected then return "Disconnected" end
+        if Kill and LevelOrFunc == Kill then return "Disconnected" end
+        return getinfo(...)
+    end))
+
+    setthreadidentity(7)
+end
+```
+
+### What Gets You Kicked vs. What Doesn't
+| Action | Outcome | Rationale / Technical Cause |
+| :--- | :--- | :--- |
+| **Adding a persistent `task.spawn` loop to re-scan `getgc`** | **INSTANT KICK** | Adonis watches its own GC memory structures. Polling `getgc(true)` repeatedly in background threads trips metatable and memory read heuristics. |
+| **Wrapping the bypass in `pcall()`** | **INSTANT KICK** | Adonis has trap metamethods that detect pcall frames around initialization calls. The bypass must run raw. |
+| **Running hooks under Identity 7 without switching to 2** | **KICK / SILENT FAIL** | Core Adonis tables reside in lower security levels (`thread identity 2`). `setthreadidentity(2)` is required during `getgc` hook assignment, then switch back to `7`. |
+| **Using `VirtualInputManager` to click** | **INTERFACE CORRUPTION** | Sends global hardware clicks, causing unintentional interactions with on-screen HUD elements, blackscreens, and chat toggles. |
+| **Using `IH:FireVirtualInput("PrimaryInput", ...)`** | **SAFE & NATIVE** | Fires natively through the game's internal `InputHandler` framework without touching the OS mouse cursor. |
+| **Single one-time raw GC hook at script startup** | **SAFE & UNTOUCHED** | Disables `Detected` and `Kill` handlers cleanly before Adonis begins its main verification ticks. |
+
+---
+
+## 10. Critical Mistakes & Pitfalls to Avoid (Lessons Learned)
+
+These are real mistakes made during development that caused severe regressions, along with the required pattern:
+
+### 1. Workspace Instance Scanning in Tight Loops (`WS:GetChildren()`)
+* **The Mistake**: Running `for _, d in ipairs(WS:GetChildren()) do` inside high-frequency polling loops (e.g. 25Hz `task.wait(0.04)` to detect bite sound effects). In The Wild West, `Workspace` has over 20,000 instances; iterating them 25 times per second thrashes the CPU and Lua garbage collector, dropping client FPS from 60 to 5.
+* **The Fix**:
+  - Scope all sound and part searches strictly to `char:GetDescendants()` (under 50 instances).
+  - Target specific containers (`workspace.Entities`, `workspace.NPC`) rather than the root `workspace`.
+  - Check named parts directly using `:FindFirstChild("Bobber")` instead of full scans.
+  - Keep check intervals $\ge 0.1\text{s}$ (10Hz is more than fast enough for human-timed QTEs and bites).
+
+### 2. Confusing Editor Linter Warnings with Runtime Errors
+* **The Mistake**: Opening bundled files in Real and seeing ~1,850 `UnknownGlobal` warnings, assuming the bundle is broken. Real runs the Luau Language Server statically; modular closures referencing environment variables (`LP`, `S`, `UI`, `root`, `FISH`) trigger static linter warnings even though they execute perfectly at runtime.
+* **The Fix**:
+  - Place `--!nocheck` and `--!nolint` on lines 1–2 of `scripty_bundle.luau` before any non-comment code.
+  - Close and reopen the tab in Real so it re-reads the updated file from disk.
+
+### 3. Syntax Error Cascades from Missing Block Terminators (`end`)
+* **The Mistake**: Forgetting a single `end` on a `while` loop inside an asynchronous `task.spawn(function() ... end)` closure. Luau matches the next `end)` against the `while` statement, triggering three false error locations:
+  1. Line $N$: `Expected identifier when parsing expression, got ')'`
+  2. Line $N+4$: `Expected ')' to close '(', got 'local'`
+  3. Line $EOF$: `Expected 'end' to close 'function' at line 2296, got <eof>`
+* **The Fix**: Triage block nesting directly by line indentation in the source module rather than writing complex external AST scripts.
+
+### 4. Ground Teleportation & Horse Dismounting (`landBeside`)
+* **The Mistake**: Teleporting the player while still mounted on a horse, or teleporting directly onto target coordinates without validating dry ground. The player can get stuck in a swim state or embedded inside horse geometry.
+* **The Fix**:
+  - Call `dismount()` first and wait $0.3\text{s}$ for seat physics to clear.
+  - Probe dry ground in 6 cardinal and diagonal offsets using raycasts (`groundY(pos + dir * offset)`).
+  - Reset `AssemblyLinearVelocity = Vector3.zero` over 5–10 Heartbeat frames upon landing.
+
+---
+
+## 11. AI Engineering & Contributor Guide
+
+If you are an AI assistant or contributor working on this codebase with zero prior context, follow these strict architectural rules:
+
+### Architecture & Bundling Protocol
+1. **Never edit `scripty_bundle.luau` directly**:
+   - The repository is modularized into 13 standalone files inside `modules/` and orchestrated by `scripty.luau`.
+   - `bundle.py` compiles the modules into `scripty_bundle.luau` and hardlinks it to Real's workspace.
+   - Always make edits inside the relevant module in `modules/`, then run `python bundle.py`.
+2. **Environment Upvalues & Cross-Module State**:
+   - Modules share runtime variables (`LP`, `WS`, `S`, `UI`, `TH`, `FISH`, `COMBAT`, `root`, `hum`, `char`, `logAction`).
+   - When a module exports functions, ensure it returns them cleanly in its export table at the bottom of the module file.
+3. **Quota Conservation & Execution Hygiene**:
+   - Never write auxiliary Python inspection/regex scripts for simple syntax errors or one-line bug fixes.
+   - Read compiler diagnostics and line numbers directly, make targeted edits with `replace_file_content`, run `bundle.py`, and test.
+   - Respect the machine and project rules in `GEMINI.md` and `.agents/rules/coding_efficiency.md`.
+

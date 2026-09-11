@@ -3237,55 +3237,68 @@ local function startBiteWatch()
         while S.running do
             if S.autoFish and castPhase == "casted" and not tappedThisCast
                and os.clock() - lastCast > 1.5 then
-                local r = root()
-                if r then
-                    for _, d in ipairs(WS:GetChildren()) do
-                        if d:IsA("BasePart") and (d.Position - r.Position).Magnitude < 200 then
-                            for _, sfx in ipairs(d:GetChildren()) do
-                                if sfx:IsA("Sound") and sfx.IsPlaying then
-                                    local sn = sfx.Name:lower()
-                                    if sn:find("bite") or sn:find("splash") or sn:find("reel") or sn == "fishbite" or sn == "bitecrunch" then
-                                    tappedThisCast = true
-                                    _lastReelTap = os.clock()
-                                    task.wait(S.reelDelay or 0.25)
-                                    if IH then
-                                        pcall(function() IH:FireVirtualInput("PrimaryInput", true) end)
-                                        pcall(function() IH:FireVirtualInput("PrimaryInput", false) end)
-                                    end
-                                    FISH.status = "BITE - reeling"
-                                    logAction("BITE", "Fish bite sound detected! Striking & reeling...", Color3.fromRGB(255, 175, 50), "BITE")
-                                    task.spawn(function()
-                                        local t1 = os.clock()
-                                        while os.clock() - t1 < 8 and S.running do
-                                            if LP:GetAttribute("IsMashing") == true
-                                               or LP:GetAttribute("IsShaking") == true then break end
-                                            local playing = false
-                                            local hh = hum()
-                                            local an = hh and hh:FindFirstChildOfClass("Animator")
-                                            if an then
-                                                for _, tr in ipairs(an:GetPlayingAnimationTracks()) do
-                                                    local id = tostring(tr.Animation and tr.Animation.AnimationId):match("(%d+)")
-                                                    if id == "85381268135994" then playing = true; break end
-                                                end
-                                            end
-                                            if not playing then break end
-                                            if IH then
-                                                pcall(function() IH:FireVirtualInput("PrimaryInput", true) end)
-                                                task.wait(0.03)
-                                                pcall(function() IH:FireVirtualInput("PrimaryInput", false) end)
-                                            end
-                                            task.wait(0.16 + math.random() * 0.06)
-                                        end
-                                    end)
+                local c = char
+                if c then
+                    local function isBiteSound(s)
+                        if not s:IsA("Sound") or not s.IsPlaying then return false end
+                        local n = s.Name
+                        return n == "FishBite" or n == "BiteCrunch" or n == "Splash" or n == "Reel" or n == "Bite" or n == "fishbite" or n == "bitecrunch"
+                    end
+                    local foundBite = false
+                    for _, sfx in ipairs(c:GetDescendants()) do
+                        if isBiteSound(sfx) then
+                            foundBite = true
+                            break
+                        end
+                    end
+                    if not foundBite then
+                        local bobber = WS:FindFirstChild("Bobber") or WS:FindFirstChild(LP.Name .. "Bobber")
+                        if bobber then
+                            for _, sfx in ipairs(bobber:GetDescendants()) do
+                                if isBiteSound(sfx) then
+                                    foundBite = true
                                     break
                                 end
                             end
                         end
-                        if tappedThisCast then break end
+                    end
+                    if foundBite then
+                        tappedThisCast = true
+                        _lastReelTap = os.clock()
+                        task.wait(S.reelDelay or 0.25)
+                        if IH then
+                            pcall(function() IH:FireVirtualInput("PrimaryInput", true) end)
+                            pcall(function() IH:FireVirtualInput("PrimaryInput", false) end)
+                        end
+                        FISH.status = "BITE - reeling"
+                        logAction("BITE", "Fish bite sound detected! Striking & reeling...", Color3.fromRGB(255, 175, 50), "BITE")
+                        task.spawn(function()
+                            local t1 = os.clock()
+                            while os.clock() - t1 < 8 and S.running do
+                                if LP:GetAttribute("IsMashing") == true
+                                   or LP:GetAttribute("IsShaking") == true then break end
+                                local playing = false
+                                local hh = hum()
+                                local an = hh and hh:FindFirstChildOfClass("Animator")
+                                if an then
+                                    for _, tr in ipairs(an:GetPlayingAnimationTracks()) do
+                                        local id = tostring(tr.Animation and tr.Animation.AnimationId):match("(%d+)")
+                                        if id == "85381268135994" then playing = true; break end
+                                    end
+                                end
+                                if not playing then break end
+                                if IH then
+                                    pcall(function() IH:FireVirtualInput("PrimaryInput", true) end)
+                                    task.wait(0.03)
+                                    pcall(function() IH:FireVirtualInput("PrimaryInput", false) end)
+                                end
+                                task.wait(0.16 + math.random() * 0.06)
+                            end
+                        end)
                     end
                 end
             end
-            task.wait(0.04)
+            task.wait(0.1)
         end
     end
     biteWatchStarted = false
