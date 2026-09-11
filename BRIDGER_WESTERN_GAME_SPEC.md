@@ -421,25 +421,25 @@ For any AI assistant or developer building modular automation scripts for this g
 
 ---
 
-## 12. Requirements Clarification & Telemetry Probing Protocols
+## 12. Clarifying Vague Requests & Testing Unknown Game Features
 
-To maintain high engineering efficiency and prevent speculative coding bugs, AI assistants and developers operating on this game must adhere to the following communication and reconnaissance standards:
+### 1. When to Ask vs. When to Just Code
+* **If you have enough info**: Just write the code. Don't ask pointless questions or stall.
+* **If the request is vague**: Don't guess what the user wants. Ask for clarification and lay out:
+  1. The most standard way to do it.
+  2. An alternative way to do it.
+  3. The simplest / safest minimal change.
+  4. An open option for the user to tell you what they want.
 
-### 1. Requirements Triage: Direct Execution vs. Clarification
-* **Complete Requirements**: If a user request has sufficient, actionable parameters (e.g. clear bug reproduction, known file targets, or unambiguous functional goals), proceed directly with implementation. Do not introduce unnecessary conversational friction or rhetorical questions.
-* **Ambiguous or Underspecified Requests**: When a request lacks essential mechanical parameters or admits conflicting interpretations, do not guess blindly. Structure clarification using the **Four-Option Framework**:
-  - **Option 1**: Primary standard interpretation based on existing codebase conventions.
-  - **Option 2**: Alternative behavioral implementation.
-  - **Option 3**: Conservative or minimal implementation with the lowest blast radius.
-  - **Option 4**: Explicit user custom specification or correction.
+### 2. Handling Unknown or Undocumented Game Features
+If a request involves parts of the game that aren't documented yet (new mechanics, unknown remotes, or mystery object trees):
+* **Don't guess blindly**: Never write code for the main script based on assumptions. Guessing remotes or game states can trigger anticheat kicks or break existing features.
+* **Make a small diagnostic test script first**: Write a short standalone test snippet designed to inspect and print the exact data you need (instance names, sound IDs, attributes, or remote arguments).
+* **Keep test scripts safe**:
+  - Don't loop over the entire Workspace.
+  - Don't run continuous background loops or spam `getgc`.
+  - Don't fire server remotes blindly.
+  - Print the findings to the console and stop.
+* **Ask the user to run it and report back**: Give the test script to the user, wait for the console results, and only write the real feature once you have confirmed how the game actually works.
 
-### 2. Undocumented Game Territory: The Safe Probing Protocol
-When asked to automate or interact with an undocumented game mechanic (e.g. newly added minigames, unmapped remote sequences, unknown entity hierarchies, or obfuscated state tables):
-* **Prohibition on Speculative Coding**: Do not inject unverified guesses into production script modules unless the user explicitly instructs you to proceed regardless. Speculative hooks risk triggering server anticheat honeypots or bricking client execution.
-* **Propose Non-Invasive Diagnostic Probes**: Propose or provide a lightweight, isolated probe script designed exclusively to inspect and log the required runtime data.
-* **Safety Mandates for Diagnostic Probes**:
-  - *Zero Anticheat Footprint*: Must not execute continuous GC iterations, modify protected tables, or fire unsolicited server remotes.
-  - *Zero Main-Thread Throttling*: Must never perform unindexed `workspace:GetChildren()` or `GetDescendants()` sweeps; scope queries strictly to the target entity or bounded spatial queries (`GetPartBoundsInRadius`).
-  - *Ephemeral Execution*: Must log clean, structured telemetry (instance class names, attributes, remote signatures, or Sound IDs) to the client console or file and immediately terminate.
-* **Closed-Loop Feedback**: Present the safe probe script to the user, request the logged output from their live session, and proceed with production implementation only after the real game mechanics have been verified against live data.
 

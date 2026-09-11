@@ -179,18 +179,19 @@ This means you do NOT need to poll in a loop while waiting for messages or updat
 
 ---
 
-## 9. Clarification, Four-Option Framework & Telemetry Probing
+## 9. Clarifying Vague Requests & Testing Unknown Features
 
-*   **Requirements Triage**:
-    - If a user request has sufficient, actionable parameters (e.g. clear bug reproduction, known file targets, or unambiguous functional goals), proceed directly with implementation without asking rhetorical questions.
-    - If a request is genuinely ambiguous or underspecified, do not make wild assumptions. Ask for clarification and structure the response using the **Four-Option Framework**:
-        1. **Option 1**: Primary standard interpretation based on existing codebase conventions.
-        2. **Option 2**: Alternative behavioral implementation.
-        3. **Option 3**: Conservative or minimal implementation with the lowest blast radius.
-        4. **Option 4**: Explicit user write-in option to correct or direct otherwise.
-*   **Undocumented Game Territory (Reconnaissance Protocol)**:
-    - Never guess blindly or write speculative production code when dealing with undocumented mechanics, unmapped remotes, or unknown internal game state (unless the user explicitly confirms to proceed regardless).
-    - Instead, offer a lightweight, non-invasive diagnostic probe script specifically designed to inspect and log the required runtime data.
-    - Diagnostic probe scripts must strictly adhere to anticheat safety guidelines (zero persistent GC loops, no main-thread Workspace sweeps, appropriate thread context, no unsolicited remote firing).
-    - Ask the user to run the probe and return the logged telemetry before writing the production implementation.
+*   **When to Ask vs. When to Just Code**:
+    - If you have enough info to do the job: Just write the code. Don't ask pointless questions or stall.
+    - If the request is vague or missing details: Don't guess. Ask for clarification and offer 4 clear options:
+        1. **Option 1**: The standard way based on how the codebase currently works.
+        2. **Option 2**: An alternative way to do it.
+        3. **Option 3**: The simplest, minimal change with the least risk.
+        4. **Option 4**: An open choice for the user to specify their own preference.
+*   **Handling Unknown / Undocumented Game Mechanics**:
+    - Never write production code based on assumptions about unknown game objects, remotes, or internal states (unless the user explicitly says to go ahead).
+    - Offer a small, safe diagnostic test script that prints the exact data needed (names, sound IDs, attributes, or remote arguments).
+    - The test script must be safe: no looping through all of Workspace, no infinite `getgc` loops, no blind remote firing.
+    - Ask the user to run the snippet and paste back the console output before writing the real feature.
+
 
