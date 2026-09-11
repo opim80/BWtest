@@ -1,0 +1,5 @@
+*.monolithic_backup
+*.backup
+*.tmp
+*.txt
+__pycache__/
