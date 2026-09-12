@@ -3323,7 +3323,6 @@ local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
 
 local LP = Players.LocalPlayer or Players:GetPlayers()[1]
 
@@ -4020,21 +4019,20 @@ end
 
 local function pressChoice(b)
     if not b then return false end
+    local clicked = false
     local getcons = getconnections or get_signal_cons
     if getcons then
-        local ok, cons = pcall(getcons, b.MouseButton1Click)
-        if ok and cons then
-            for _, c in ipairs(cons) do
-                if c.Function then pcall(c.Function) end
+        for _, sig in ipairs({ b.MouseButton1Click, b.Activated, b.MouseButton1Down, b.MouseButton1Up }) do
+            local ok, cons = pcall(getcons, sig)
+            if ok and cons then
+                for _, c in ipairs(cons) do
+                    if c.Function then pcall(c.Function); clicked = true end
+                    if c.Fire then pcall(function() c:Fire() end); clicked = true end
+                end
             end
         end
     end
-    pcall(function()
-        VirtualInputManager:SendMouseButtonEvent(b.AbsolutePosition.X + b.AbsoluteSize.X / 2, b.AbsolutePosition.Y + b.AbsoluteSize.Y / 2, 0, true, game, 0)
-        task.wait(0.04)
-        VirtualInputManager:SendMouseButtonEvent(b.AbsolutePosition.X + b.AbsoluteSize.X / 2, b.AbsolutePosition.Y + b.AbsoluteSize.Y / 2, 0, false, game, 0)
-    end)
-    return true
+    return clicked or true
 end
 
 local function pickChoice(pattern, timeout)

@@ -83,21 +83,15 @@ InputHandler:FireVirtualInput(alias, false)
 | `"HorseCallInput"` | `H` key | Whistle for / summon horse |
 | `"JumpInput"` | `Space` key | Humanoid jump / horse hurdle |
 
-### Fallback Input (Engine Level)
-For direct engine inputs, use `VirtualInputManager`:
-```lua
-local VIM = game:GetService("VirtualInputManager")
-
--- Send Key:
-VIM:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-task.wait(0.05)
-VIM:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-
--- Send Mouse Click:
-VIM:SendMouseButtonEvent(x, y, 0, true, game, 0)
-task.wait(0.05)
-VIM:SendMouseButtonEvent(ml.X, ml.Y, 0, false, game, 0)
-```
+### Prohibited: `VirtualInputManager` (STRICTLY FORBIDDEN)
+> [!CAUTION]
+> **NEVER use `VirtualInputManager` (`VIM`) under any circumstances.**
+> Anti-cheat systems (including Adonis and BW heuristics) flag `VirtualInputManager` synthetic input calls (`SendKeyEvent`, `SendMouseButtonEvent`). Using VIM triggers detection or kicks.
+>
+> **Approved alternatives**:
+> 1. **UI Buttons & NPC Dialogs**: Resolve active signals via `getconnections(btn.MouseButton1Click)` / `getconnections(btn.Activated)` and call `c.Function()` / `c:Fire()`.
+> 2. **Game In-World Actions**: Use the internal `InputHandlerClient.tap("ActionName", duration)`.
+> 3. **Hardware Keys (Jump, QTE, etc.)**: Use executor-level OS hardware driver (`keyclick(vk)` or `keypress(vk)` + `keyrelease(vk)`). Never use `VIM:SendKeyEvent`.
 
 ---
 
