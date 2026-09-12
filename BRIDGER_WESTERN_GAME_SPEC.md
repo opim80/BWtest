@@ -6,6 +6,21 @@
 
 ---
 
+## 0. Mandatory AI Operating Directives (Enforced on EVERY Message)
+
+> [!IMPORTANT]
+> **PERSISTENT SYSTEM INVARIANT — NEVER FORGET OR DRIFT**:
+> The AI assistant MUST actively cross-reference and adhere to this specification on **EVERY SINGLE MESSAGE AND RESPONSE**, without exception. Do not follow this document for a few turns and then revert to generic Roblox scripting assumptions. Every script, modification, remote call, input event, and game mechanic interaction MUST strictly comply with this document on every turn.
+
+### Core Pre-Flight Checklist (Run Before Every Generation)
+1. **Continuous Spec Verification**: Validate that all game calls match BW-specific architecture (e.g. use `InputHandlerClient`, NEVER `VirtualInputManager`; verify Adonis anti-cheat safety constraints; ensure horse dismount before CFrame movement; avoid `workspace:GetDescendants()`).
+2. **Space Optimization (Fewer Lines of Code)**: Maximize line-count economy and minimize token bloat on every script. Write tight, compact, space-optimized Luau. Avoid unnecessary filler lines, excessive blank lines, or redundant multi-line commentary. Combine short guard clauses, use ternary expressions (`cond and a or b`), and keep helper routines concise.
+3. **Speed Efficiency & Micro-Performance**: Optimize for peak runtime execution speed on every script. Cache high-frequency globals and engine services into local upvalues (`local task_wait = task.wait`, `local Vec3 = Vector3.new`, etc.), eliminate table/string allocations in hot paths or render loops, and rely on Roblox spatial queries (`workspace:GetPartBoundsInRadius`) rather than hierarchy scans.
+4. **Unknown Mechanic Suggestion Rule**: If the user asks for a function or automation for ANY game mechanic not explicitly documented in this spec or whose internal mechanics are unknown, **DO NOT GUESS OR WRITE SPECULATIVE CODE**. You MUST immediately suggest a **safe diagnostic test script** (per Section 12.2) to inspect the live game state, and provide 4 structured clarification options.
+5. **Concise Communication & Zero Spec Acknowledgement**: NEVER acknowledge reading, checking, or following this spec (do not say "Understood", "I've reviewed the spec", etc.). If prompted with this file or starting a session, simply ask what the user wants to make. Keep all explanations short, direct, and factual with zero corporate buzzwords.
+
+---
+
 ## 1. Top-Level Game Architecture & Framework
 
 *Bridger: Western* is structured around a centralized framework located in `ReplicatedStorage`:
@@ -390,8 +405,8 @@ Developing automation scripts for large-scale western games requires extreme cau
   - Avoid string allocations (e.g. `sfx.Name:lower()`) and multi-pattern string regex inside tight loops; check exact names or cache instance references.
 
 ### 2. The VirtualInputManager Coordinate Trap
-* **The Mistake**: Using `VirtualInputManager:SendMouseButtonEvent(x, y, ...)` to perform in-game primary actions (such as casting a rod, swinging a melee weapon, or firing a gun).
-* **Why It Fails**: `VirtualInputManager` simulates OS-level hardware mouse clicks at screen pixel coordinates. If the player has UI elements, menus, or script HUDs open on screen, the synthetic click will hit and toggle the GUI buttons instead of interacting with the 3D game world.
+* **The Mistake**: Using `VirtualInputManager` to perform in-game primary actions
+* **Why It Fails**: `VirtualInputManager` simulates OS-level hardware at screen pixel coordinates. This method is completely detected NEVER USE IT UNDER ANY CIRCUMSTANCES.
 * **The Correct Pattern**: Always use the game's internal `InputHandlerClient:FireVirtualInput("PrimaryInput", true/false)`. It operates independently of screen coordinates and never accidentally clicks on GUI elements.
 
 ### 3. Horse Mounting & Ground Raycasting Traps
@@ -404,20 +419,64 @@ Developing automation scripts for large-scale western games requires extreme cau
 
 ---
 
-## 11. AI Engineering & Modular Script Guidelines
+## 11. AI Engineering, Code Compactness & High-Performance Optimization
 
-For any AI assistant or developer building modular automation scripts for this game:
+For any AI assistant or developer building scripts and automation for *Bridger: Western*:
 
-1. **Closure Bundling & Static Linter Directives**:
-   - When modular source files are bundled into a single self-contained script using closure encapsulation (`EMBEDDED_MODULES["Name"] = function(...)`), variables shared across modules will be flagged by in-app Luau linters (such as Real's Monaco LSP) as hundreds of `UnknownGlobal` warnings.
-   - **Mandatory Directives**: The generated bundle must always have `--!nocheck` and `--!nolint` at lines 1–2 (before any non-comment tokens) to silence editor warnings.
-2. **Strict Block Nesting & Single Contiguous Edits**:
-   - In Luau, an unclosed `while`, `for`, or `if` statement will cascade across the entire file, producing misleading syntax errors hundreds of lines later at `<eof>`.
-   - When modifying code, make surgical, single-block contiguous replacements rather than rewriting entire functions or files.
-3. **No Polling Commands or Long Scaffolding**:
-   - Avoid creating disposable diagnostic scripts to check simple logic. Inspect the exact line numbers provided by compiler/runtime diagnostics directly, apply the fix, and verify once.
-4. **State Preservation**:
-   - Maintain central state dictionaries so that toggling features on and off cleanly terminates background loops and disconnects event connections without leaving ghost threads running in the client.
+### 1. Code Space Optimization & Line Count Economy (Fewer Lines of Code)
+Every script, module, or function must be written with strict space optimization and line-count economy:
+* **Eliminate Boilerplate & Ceremony**: Avoid verbose, multi-line ceremonial structures, empty vertical padding, and trivial comments that merely repeat what the code does.
+* **Compact Guard Clauses**: Use concise early exits on a single line where appropriate:
+  ```lua
+  if not char or not root then return end
+  ```
+* **Ternary & Idiomatic Short-Circuits**: Utilize Luau's `cond and a or b` pattern for compact assignments instead of 5-line `if ... else ... end` statements:
+  ```lua
+  local speed = isMounted and 28 or 16
+  ```
+* **Condensed Multi-Variable Declarations**: Declare related variables on single lines:
+  ```lua
+  local LP, RS, Players = game:GetService("Players").LocalPlayer, game:GetService("ReplicatedStorage"), game:GetService("Players")
+  local root, hum = char:FindFirstChild("HumanoidRootPart"), char:FindFirstChildOfClass("Humanoid")
+  ```
+* **Reusable Compact Utility Functions**: Consolidate repetitive tasks (e.g., getting horse, finding tools, checking attributes) into tight 2–3 line helper functions rather than repeating multi-line boilerplate across features.
+
+### 2. Runtime Speed & Micro-Performance Efficiency
+Bridger: Western operates under heavy client physics and entity loads. Every script must be engineered for maximum execution speed and zero frame hitching:
+* **Local Upvalue Caching**: Global and service lookups incur index overhead in Luau. Localize high-frequency library functions and engine constructors at the top of the file:
+  ```lua
+  local task_wait, task_spawn, task_delay = task.wait, task.spawn, task.delay
+  local Vec3, CF = Vector3.new, CFrame.new
+  local tbl_find, tbl_insert, tbl_clear = table.find, table.insert, table.clear
+  local str_find, str_match = string.find, string.match
+  local math_min, math_max, math_floor = math.min, math.max, math.floor
+  ```
+* **Zero Allocation in Hot Paths**:
+  - Never instantiate new tables (`{}`), closures, or strings inside `RenderStepped`, `Heartbeat`, or fast polling loops (< 0.1s).
+  - Clear and reuse pre-allocated buffer tables using `table.clear(cachedTable)`.
+* **C++ Spatial Partitioning Over Luau Iteration**:
+  - Never iterate through children or descendants to detect nearby entities, loot, or parts.
+  - Always use Roblox's hardware-accelerated spatial queries:
+    ```lua
+    local parts = workspace:GetPartBoundsInRadius(rootPos, radius, overlapParams)
+    ```
+* **Event-Driven Over Busy Polling**:
+  - Use `GetAttributeChangedSignal`, `AncestryChanged`, or `ChildAdded` rather than rapid `while task.wait(0.05) do` checks whenever possible.
+* **Fast-Path Early Exits**: Place the cheapest, most likely failure checks (e.g. `if not isEnabled then return end`) at the very top of event handlers to avoid computing expensive math or queries when inactive.
+
+### 3. Closure Bundling & Static Linter Directives
+* When modular source files are bundled into a single self-contained script using closure encapsulation (`EMBEDDED_MODULES["Name"] = function(...)`), variables shared across modules will be flagged by in-app Luau linters (such as Real's Monaco LSP) as hundreds of `UnknownGlobal` warnings.
+* **Mandatory Directives**: The generated bundle must always have `--!nocheck` and `--!nolint` at lines 1–2 (before any non-comment tokens) to silence editor warnings.
+
+### 4. Strict Block Nesting & Single Contiguous Edits
+* In Luau, an unclosed `while`, `for`, or `if` statement will cascade across the entire file, producing misleading syntax errors hundreds of lines later at `<eof>`.
+* When modifying code, make surgical, single-block contiguous replacements rather than rewriting entire functions or files.
+
+### 5. No Polling Commands or Long Scaffolding
+* Avoid creating disposable diagnostic scripts to check simple logic. Inspect the exact line numbers provided by compiler/runtime diagnostics directly, apply the fix, and verify once.
+
+### 6. State Preservation & Ghost Thread Prevention
+* Maintain central state dictionaries so that toggling features on and off cleanly terminates background loops and disconnects event connections without leaving ghost threads running in the client.
 
 ---
 
@@ -431,15 +490,34 @@ For any AI assistant or developer building modular automation scripts for this g
   3. The simplest / safest minimal change.
   4. An open option for the user to tell you what they want.
 
-### 2. Handling Unknown or Undocumented Game Features
-If a request involves parts of the game that aren't documented yet (new mechanics, unknown remotes, or mystery object trees):
-* **Don't guess blindly**: Never write code for the main script based on assumptions. Guessing remotes or game states can trigger anticheat kicks or break existing features.
-* **Make a small diagnostic test script first**: Write a short standalone test snippet designed to inspect and print the exact data you need (instance names, sound IDs, attributes, or remote arguments).
-* **Keep test scripts safe**:
-  - Don't loop over the entire Workspace.
-  - Don't run continuous background loops or spam `getgc`.
-  - Don't fire server remotes blindly.
-  - Print the findings to the console and stop.
-* **Ask the user to run it and report back**: Give the test script to the user, wait for the console results, and only write the real feature once you have confirmed how the game actually works.
+### 2. Handling Unknown or Undocumented Game Features (Mandatory Suggestion Rule)
+> [!IMPORTANT]
+> **MANDATORY SUGGESTION PROTOCOL FOR UNFAMILIAR MECHANICS**:
+> If the user asks to create a function, automation, or hook for ANY game mechanic that is not documented in this specification or whose internal remotes, properties, and data structures are unknown or unverified:
+> 1. **DO NOT write speculative production code or guess remotes/object paths.** Guessing triggers Adonis anti-cheat kicks, breaks client state, or causes silent failures.
+> 2. **ALWAYS suggest and provide a small, safe diagnostic test script** designed to print the exact required game objects, attributes, or network signatures to the console.
+> 3. **Present 4 Clear Options** to the user:
+>    - **Option 1**: The standard approach based on how known BW systems work (e.g. InputHandlerClient virtual inputs).
+>    - **Option 2**: An alternative approach (e.g. upvalue inspection / network table hook).
+>    - **Option 3 (Recommended)**: Run a small, safe diagnostic test snippet to inspect the exact live game state first.
+>    - **Option 4**: The user provides the exact names, remotes, or internal details directly.
 
+### 3. Safe Diagnostic Test Script Rules
+When providing a diagnostic test snippet for an unknown mechanic:
+* **Strict Safety Boundaries**:
+  - Never loop over `workspace:GetDescendants()` or iterate the entire Workspace tree.
+  - Never run continuous background loops or spam `getgc`.
+  - Never blindly fire server remotes with guessed arguments.
+  - Scope all scans to the specific entity, equipped tool, or GUI container involved.
+* **Console-and-Stop Pattern**:
+  - The test script must inspect the targeted instance, print its attributes, children, or relevant upvalues cleanly using `print()` or `warn()`, and immediately terminate.
+* **User Workflow**:
+  - Ask the user to run the snippet in their console and share the output.
+  - Only write the real production feature once the actual game structure is confirmed.
+
+### 4. Communication Style: Maximum Conciseness & Zero Buzzwords
+* **Never Acknowledge the Spec**: Do not confirm or state that you read, checked, or are following this document (e.g., never say "Understood", "I've reviewed the spec", or "Ready to write BW code"). If prompted with the spec or starting a chat, simply ask what the user wants. If given a task, execute it immediately without acknowledging the document.
+* **Zero Fluff & No Buzzwords**: Ban corporate jargon and filler words (e.g., do not say "seamlessly", "robust", "leverage", "paradigm", "orchestrate", "cutting-edge").
+* **Short & Direct Explanations**: Explain what code does in 1–2 plain English sentences. State only what changed and why.
+* **Minimal Output Length**: Omit chatty conversational padding, pleasantries, and unnecessary preamble. Deliver clean code and brief, factual explanations.
 

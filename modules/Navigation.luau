@@ -657,6 +657,9 @@ local NAV = {
     walkToken = 0,
     isWalking = false,
     activeTarget = nil,
+    drawBeacon = drawTargetBeacon,
+    clearVisuals = clearAllVisuals,
+    clearRoute = clearRouteVisuals,
 }
 
 function NAV.cancel()
@@ -925,4 +928,6 @@ return {
     walkTo = NAV.walkTo,
     cancel = NAV.cancel,
     clearVisuals = clearAllVisuals,
+    clearRoute = clearRouteVisuals,
+    drawBeacon = drawTargetBeacon,
 }

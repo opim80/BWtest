@@ -30,6 +30,7 @@ LOAD_ORDER = [
     "Utils",
     "Logging",
     "Config",
+    "Navigation",
     "Movement",
     "Safety",
     "Fishing",

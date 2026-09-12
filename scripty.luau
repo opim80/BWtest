@@ -185,6 +185,12 @@ ctx.Logging = Logging
 local Config = loadModule("Config", ctx)
 ctx.Config = Config
 
+-- 4.5. Navigation (Baritone Weighted A*, Hardware Jump Motor)
+local Navigation = loadModule("Navigation", ctx)
+ctx.Navigation = Navigation
+SHARED.NAV = Navigation.NAV
+SHARED.walkTo = Navigation.walkTo
+
 -- 5. Movement (Horse Travel & Ghost Fake Fly)
 local Movement = loadModule("Movement", ctx)
 ctx.Movement = Movement

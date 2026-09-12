@@ -463,6 +463,11 @@ do
             return
         end
         local cur = FISH.getActiveSetName()
+        if cur == "Default" then
+            feedbackLabel.Text = "⚠ Cannot delete: The 'Default' set is permanent!"
+            feedbackLabel.TextColor3 = TH.red
+            return
+        end
         S.fishingSets[cur] = nil
         if S.stagingPoints then S.stagingPoints[cur] = nil end
         local remaining = FISH.getSetNames()
