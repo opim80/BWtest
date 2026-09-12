@@ -5,6 +5,49 @@
 -- ============================================================
 local ctx = ...
 
+-- ==========================================
+-- EXECUTOR HARDWARE KEYBOARD DRIVER (Shared with Navigation)
+-- ==========================================
+local keypressFn = keypress or (syn and syn.keypress) or (fluxus and fluxus.keypress)
+local keyreleaseFn = keyrelease or (syn and syn.keyrelease) or (fluxus and fluxus.keyrelease)
+local keyclickFn = keyclick
+
+local function tapSpace()
+    local navTap = (ctx and ctx.Navigation and ctx.Navigation.tapSpace)
+        or (ctx and ctx.tapSpace)
+        or (SHARED.NAV and SHARED.NAV.tapSpace)
+        or SHARED.tapSpace
+    if navTap then
+        navTap()
+        return
+    end
+    if keyclickFn then
+        pcall(keyclickFn, 0x20)
+    elseif keypressFn and keyreleaseFn then
+        pcall(keypressFn, 0x20)
+        task.wait(0.035)
+        pcall(keyreleaseFn, 0x20)
+    end
+    if keyreleaseFn then
+        pcall(keyreleaseFn, 0x20)
+    end
+    local h = hum()
+    if h then
+        pcall(function() h.Jump = false end)
+    end
+end
+
+local function releaseAllKeys()
+    if keyreleaseFn then
+        pcall(keyreleaseFn, 0x20) -- Space
+        pcall(keyreleaseFn, 0x45) -- E
+        pcall(keyreleaseFn, 0x10) -- Shift
+    end
+    local h = hum()
+    if h then
+        pcall(function() h.Jump = false end)
+    end
+end
 
 -- ── horse travel ───────────────────────────────────────────────────────────
 local HORSE = { status = "idle" }
@@ -275,24 +318,29 @@ local function dismount()
     local hObj = myHorse()
     local c = char()
     local r = root()
+
     for _ = 1, 6 do
         if not isMounted(hObj) and not (hm and hm.Sit) then break end
         tap("HorseDismountInput", 0.15)
         tap("ActionInput2", 0.15)
+
+        -- Clean hardware jump pulse from Navigation (Space VK 0x20 & clears Humanoid.Jump)
+        tapSpace()
+
+        -- Key E (VK 0x45) pulse
         pcall(function()
             if keyclickFn then
-                keyclickFn(0x20)
-                task.wait(0.04)
                 keyclickFn(0x45)
             elseif keypressFn and keyreleaseFn then
-                keypressFn(0x20)
-                task.wait(0.04)
-                keyreleaseFn(0x20)
                 keypressFn(0x45)
-                task.wait(0.04)
+                task.wait(0.035)
+                keyreleaseFn(0x45)
+            end
+            if keyreleaseFn then
                 keyreleaseFn(0x45)
             end
         end)
+
         if hObj and firepp then
             for _, d in ipairs(hObj:GetDescendants()) do
                 if d:IsA("ProximityPrompt") and d.Enabled then
@@ -300,6 +348,7 @@ local function dismount()
                 end
             end
         end
+
         if c and hObj then
             for _, d in ipairs(c:GetDescendants()) do
                 if d:IsA("Weld") or d:IsA("WeldConstraint") or d:IsA("Motor6D") then
@@ -316,6 +365,7 @@ local function dismount()
                 end
             end
         end
+
         if hm then
             if hm.SeatPart then
                 for _, ch in ipairs(hm.SeatPart:GetChildren()) do
@@ -325,16 +375,21 @@ local function dismount()
                 end
             end
             hm.Sit = false
+            hm.Jump = false
             pcall(function() hm:ChangeState(Enum.HumanoidStateType.GettingUp) end)
-            pcall(function() hm:ChangeState(Enum.HumanoidStateType.Jumping) end)
-            hm.Jump = true
         end
-        if r then
-            pcall(function() r.CFrame = r.CFrame + Vector3.new(0, 3, 0) end)
-        end
-        task.wait(0.25)
+        task.wait(0.20)
     end
-    task.wait(0.2)
+
+    -- Thorough cleanup: release physical keys and force Humanoid to non-jumping Running state
+    releaseAllKeys()
+    local hCleanup = hum()
+    if hCleanup then
+        hCleanup.Sit = false
+        hCleanup.Jump = false
+        pcall(function() hCleanup:ChangeState(Enum.HumanoidStateType.Running) end)
+    end
+    task.wait(0.15)
 end
 
 local function landBeside(pos, offset)
@@ -360,6 +415,12 @@ local function landBeside(pos, offset)
         if rr then rr.CFrame = CFrame.new(best); rr.AssemblyLinearVelocity = Vector3.zero end
         RunService.Heartbeat:Wait()
     end
+    local hm = hum()
+    if hm then
+        hm.Jump = false
+        pcall(function() hm:ChangeState(Enum.HumanoidStateType.Running) end)
+    end
+    releaseAllKeys()
     task.wait(0.4)
     local stKey = (isSellingFish and "SELLING") or (isRestockingBait and "RESTOCK") or "TRAVEL"
     local landMsg = isSellingFish and "Arrived at Daniel for selling" or (isRestockingBait and "Arrived at Daniel for restock" or "Arrived at destination")
@@ -753,4 +814,6 @@ return {
     startFakeHorseFly = startFakeHorseFly,
     findTonicStation = findTonicStation,
     fakeFly = fakeFly,
+    tapSpace = tapSpace,
+    releaseAllKeys = releaseAllKeys,
 }

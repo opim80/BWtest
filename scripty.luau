@@ -190,6 +190,8 @@ local Navigation = loadModule("Navigation", ctx)
 ctx.Navigation = Navigation
 SHARED.NAV = Navigation.NAV
 SHARED.walkTo = Navigation.walkTo
+SHARED.tapSpace = Navigation.tapSpace
+ctx.tapSpace = Navigation.tapSpace
 
 -- 5. Movement (Horse Travel & Ghost Fake Fly)
 local Movement = loadModule("Movement", ctx)

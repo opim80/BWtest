@@ -54,7 +54,15 @@ local function tapSpace()
         task.wait(0.035)
         pcall(keyreleaseFn, 0x20)
     end
+    if keyreleaseFn then
+        pcall(keyreleaseFn, 0x20)
+    end
+    local h = hum()
+    if h then
+        pcall(function() h.Jump = false end)
+    end
 end
+SHARED.tapSpace = tapSpace
 
 -- ==========================================
 -- CONFIGURATION & RAYCAST FILTERS
@@ -660,6 +668,7 @@ local NAV = {
     drawBeacon = drawTargetBeacon,
     clearVisuals = clearAllVisuals,
     clearRoute = clearRouteVisuals,
+    tapSpace = tapSpace,
 }
 
 function NAV.cancel()
@@ -671,9 +680,13 @@ function NAV.cancel()
         pcall(function()
             h:Move(Vector3.zero, false)
             h.WalkSpeed = 16
+            h.Jump = false
         end)
     end
-    if keyreleaseFn then pcall(keyreleaseFn, 0x10) end
+    if keyreleaseFn then
+        pcall(keyreleaseFn, 0x10)
+        pcall(keyreleaseFn, 0x20)
+    end
 end
 
 function NAV.walkTo(targetPos: Vector3, options: any?): boolean
@@ -911,8 +924,12 @@ function NAV.walkTo(targetPos: Vector3, options: any?): boolean
         if hFinal then
             hFinal:Move(Vector3.zero, false)
             hFinal.WalkSpeed = 16
+            hFinal.Jump = false
         end
-        if keyreleaseFn then pcall(keyreleaseFn, 0x10) end
+        if keyreleaseFn then
+            pcall(keyreleaseFn, 0x10)
+            pcall(keyreleaseFn, 0x20)
+        end
     end)
 
     if NAV.walkToken == myToken then
@@ -930,4 +947,5 @@ return {
     clearVisuals = clearAllVisuals,
     clearRoute = clearRouteVisuals,
     drawBeacon = drawTargetBeacon,
+    tapSpace = tapSpace,
 }
