@@ -36,6 +36,15 @@ local function groundY(pos, ignore)
     return hit and (hit.Position.Y + 3.0) or nil
 end
 
+-- Cross-Section Forward Declarations
+local UI: any = {}
+local FISH: any = {}
+local COMBAT: any = {}
+
+-- Executor Compatibility Resolvers
+local syn = rawget(_G, "syn") or (rawget(getgenv and getgenv() or {}, "syn"))
+local fluxus = rawget(_G, "fluxus") or (rawget(getgenv and getgenv() or {}, "fluxus"))
+
 -- Executor Hardware Keyboard Drivers
 local keypressFn = keypress or (syn and syn.keypress) or (fluxus and fluxus.keypress)
 local keyreleaseFn = keyrelease or (syn and syn.keyrelease) or (fluxus and fluxus.keyrelease)
@@ -413,8 +422,7 @@ local function sendInventoryWebhook(reason)
         { name = "🎣 Total Fish", value = tostring(fTotal), inline = true },
         { name = "🐟 Fish Breakdown", value = string.format("Bass: %d | Snapper: %d | Cod: %d", fCounts.Bass or 0, fCounts.Snapper or 0, fCounts.Cod or 0), inline = false },
         { name = "🪱 Bait & Gear", value = string.format("Bait: %d | Catches: %d | Rod: %s", bait, (FISH and FISH.catches or 0), curRod and "Yes" or "No"), inline = false },
-        { name = "📍 Status", value = string.format("[%s] %s
-%s", Status.state, Status.action, Status.detail), inline = false },
+        { name = "📍 Status", value = string.format("[%s] %s\\n%s", Status.state, Status.action, Status.detail), inline = false },
     }
     local sent = sendDiscordWebhook(reason or "📊 Inventory & Telemetry Report", "Telemetry for **" .. LP.Name .. "**", fields, 0x6366F1)
     if sent then lastWebhookSend = os.clock() end
@@ -1269,7 +1277,7 @@ end
 -- ============================================================
 -- 5. COMBAT, SILENT AIM & BALLISTICS PREDICTION ENGINE
 -- ============================================================
-local COMBAT = {
+COMBAT = {
     hooked = false,
     currentTarget = nil,
     targetStatus = "None",
@@ -1622,7 +1630,7 @@ end
 -- ============================================================
 -- 6. FISHING ENGINE, SPOT MANAGER & MINIGAME SOLVERS
 -- ============================================================
-local FISH = {
+FISH = {
     status = "idle",
     casts = 0,
     catches = 0,
@@ -2231,7 +2239,7 @@ end
 -- ============================================================
 -- 9. MODERN D.R.Y. UI FRAMEWORK & DECLARATIVE SCHEMA
 -- ============================================================
-local UI = {
+UI = {
     tabs = {},
     activeTab = nil,
     gui = nil,
@@ -2433,7 +2441,7 @@ local function createDropdown(parent, label, key, options, onChange)
     stroke(btn, TH.border)
 
     local optIdx = 1
-    for i, o in ipairs(options) do if S[key] == o then optIdx = i break end end
+    for i, o in ipairs(options) do if S[key] == o then optIdx = i; break end end
 
     btn.MouseButton1Click:Connect(function()
         optIdx = (optIdx % #options) + 1
