@@ -1,4 +1,68 @@
 --!nocheck
+-- ── ADONIS ANTICHEAT BYPASS (RAW & UN-PCALLED) ─────────────────────────────
+do
+    local getinfo = getinfo or debug.getinfo
+    local DEBUG = false
+    local Hooked = {}
+    local Detected, Kill
+
+    setthreadidentity(2)
+
+    for i, v in getgc(true) do
+        if typeof(v) == "table" then
+            local DetectFunc = rawget(v, "Detected")
+            local KillFunc = rawget(v, "Kill")
+
+            if typeof(DetectFunc) == "function" and not Detected then
+                Detected = DetectFunc
+
+                local Old; Old = hookfunction(Detected, function(Action, Info, NoCrash)
+                    if Action ~= "_" then
+                        if DEBUG then
+                            warn(`Adonis AntiCheat flagged\nMethod: {Action}\nInfo: {Info}`)
+                        end
+                    end
+
+                    return true
+                end)
+
+                table.insert(Hooked, Detected)
+            end
+
+            if rawget(v, "Variables") and rawget(v, "Process") and typeof(KillFunc) == "function" and not Kill then
+                Kill = KillFunc
+                local Old; Old = hookfunction(Kill, function(Info)
+                    if DEBUG then
+                        warn(`Adonis AntiCheat tried to kill (fallback): {Info}`)
+                    end
+                end)
+
+                table.insert(Hooked, Kill)
+            end
+        end
+    end
+
+    local Old; Old = hookfunction(getrenv().debug.info, newcclosure(function(...)
+        local LevelOrFunc, Info = ...
+
+        if Detected and LevelOrFunc == Detected then
+            if DEBUG then
+                warn(`Adonis Bypassed!`)
+            end
+
+            return coroutine.yield(coroutine.running())
+        end
+
+        return Old(...)
+    end))
+    setthreadidentity(7)
+end
+
+-- Guard against multiple simultaneous executions
+if getgenv().BW3_Unload then
+    pcall(getgenv().BW3_Unload)
+end
+
 -- ============================================================
 -- BRIDGER HUB (BW) — UNIFIED ENGINE v3.5
 -- High-Efficiency Single-File Edition with Modern D.R.Y. UI
@@ -11,13 +75,11 @@ local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
 
 local LP = Players.LocalPlayer or Players:GetPlayers()[1]
 local WS = Workspace
 local UIS = UserInputService
 local TS = TweenService
-local VIM = VirtualInputManager
 local Mouse = LP and LP:GetMouse()
 local Camera = WS.CurrentCamera or WS:FindFirstChildOfClass("Camera")
 
@@ -95,12 +157,17 @@ local function pressChoice(b)
                 if c.Function then pcall(c.Function) end
             end
         end
+        local ok2, cons2 = pcall(getcons, b.Activated)
+        if ok2 and cons2 then
+            for _, c in ipairs(cons2) do
+                if c.Function then pcall(c.Function) end
+            end
+        end
     end
-    pcall(function()
-        VIM:SendMouseButtonEvent(b.AbsolutePosition.X + b.AbsoluteSize.X / 2, b.AbsolutePosition.Y + b.AbsoluteSize.Y / 2, 0, true, game, 0)
-        task.wait(0.04)
-        VIM:SendMouseButtonEvent(b.AbsolutePosition.X + b.AbsoluteSize.X / 2, b.AbsolutePosition.Y + b.AbsoluteSize.Y / 2, 0, false, game, 0)
-    end)
+    if firesignal then
+        pcall(firesignal, b.MouseButton1Click)
+        pcall(firesignal, b.Activated)
+    end
     return true
 end
 
@@ -1533,17 +1600,6 @@ function COMBAT.ensureHook()
     if okMod and typeof(gunMod) == "table" and typeof(gunMod.Equip) == "function" then
         equipFn = gunMod.Equip
     end
-    if not equipFn and getgc then
-        pcall(function()
-            for _, v in ipairs(getgc(false) or getgc()) do
-                if typeof(v) == "function" and islclosure(v) and not isexecutorclosure(v) then
-                    local src = debug.info(v, "s")
-                    local name = debug.info(v, "n")
-                    if src and src:find("CoreGunClientModule") and name == "Equip" then equipFn = v; break end
-                end
-            end
-        end)
-    end
     if not equipFn then return false end
 
     local getupvaluesFn = getupvalues or (debug and debug.getupvalues)
@@ -1597,20 +1653,43 @@ function COMBAT.startIHateYou()
                 local tRoot = tChar:FindFirstChild("HumanoidRootPart")
                 local r = root()
                 if tRoot and r then
-                    local behindOffset = -tRoot.CFrame.LookVector * (S.iHateYouDistance or 190) + Vector3.new(0, 35, 0)
-                    local vantagePos = tRoot.Position + behindOffset
-                    if S.martiniVantage then
-                        local highPos = groundY(vantagePos)
-                        if highPos then vantagePos = Vector3.new(vantagePos.X, math.max(vantagePos.Y, highPos + 25), vantagePos.Z) end
+                    if isMounted() then
+                        dismount()
+                        task.wait(0.2)
                     end
-                    r.CFrame = CFrame.new(vantagePos, tRoot.Position)
-                    r.AssemblyLinearVelocity = Vector3.zero
+                    if not isMounted() then
+                        local behindOffset = -tRoot.CFrame.LookVector * (S.iHateYouDistance or 190) + Vector3.new(0, 35, 0)
+                        local vantagePos = tRoot.Position + behindOffset
+                        if S.martiniVantage then
+                            local highPos = groundY(vantagePos)
+                            if highPos then vantagePos = Vector3.new(vantagePos.X, math.max(vantagePos.Y, highPos + 25), vantagePos.Z) end
+                        end
+                        r.CFrame = CFrame.new(vantagePos, tRoot.Position)
+                        r.AssemblyLinearVelocity = Vector3.zero
 
-                    -- Auto-fire trigger
-                    if COMBAT.u62Table and typeof(COMBAT.u62Table.FireServer) == "function" then
-                        local predPos = COMBAT.calculateTrajectory(tChar, tChar:FindFirstChild(S.aimHitbox or "Head") or tRoot)
-                        if predPos then
-                            pcall(function() COMBAT.u62Table:FireServer("Fire", predPos, true) end)
+                        -- Auto-fire trigger: verify firearm tool is equipped before firing
+                        local curChar = char()
+                        local curTool = curChar and curChar:FindFirstChildOfClass("Tool")
+                        if not curTool then
+                            local bp = LP and LP:FindFirstChildOfClass("Backpack")
+                            local hm = hum()
+                            if bp and hm then
+                                for _, t in ipairs(bp:GetChildren()) do
+                                    if t:IsA("Tool") and (t:FindFirstChild("GunScript") or t:FindFirstChild("Config") or t.Name:lower():find("gun") or t.Name:lower():find("rifle") or t.Name:lower():find("revolver") or t.Name:lower():find("pistol")) then
+                                        hm:EquipTool(t)
+                                        break
+                                    end
+                                end
+                            end
+                            curChar = char()
+                            curTool = curChar and curChar:FindFirstChildOfClass("Tool")
+                        end
+
+                        if curTool and COMBAT.u62Table and typeof(COMBAT.u62Table.FireServer) == "function" then
+                            local predPos = COMBAT.calculateTrajectory(tChar, tChar:FindFirstChild(S.aimHitbox or "Head") or tRoot)
+                            if predPos then
+                                pcall(function() COMBAT.u62Table:FireServer("Fire", predPos, true) end)
+                            end
                         end
                     end
                 end
@@ -2708,7 +2787,7 @@ local UI_SCHEMA = {
             {
                 title = "Silent Aim & Ballistics",
                 items = {
-                    { "toggle", "Prediction Silent Aim", "silentAim" },
+                    { "toggle", "Prediction Silent Aim", "silentAim", function(v) if v then COMBAT.ensureHook() end end },
                     { "toggle", "Martini Ballistics (5k Range)", "martiniBallistics" },
                     { "dropdown", "Target Mode", "aimTargetMode", { "Closest to Cursor", "Lowest Health", "Lowest Distance" } },
                     { "dropdown", "Target Hitbox", "aimHitbox", { "Head", "HumanoidRootPart", "UpperTorso" } },
@@ -2730,7 +2809,7 @@ local UI_SCHEMA = {
             {
                 title = "Target Stalking",
                 items = {
-                    { "toggle", "I Hate You (Pursuit)", "iHateYou", function(v) if v then COMBAT.startIHateYou() else COMBAT.stopIHateYou() end end },
+                    { "toggle", "I Hate You (Pursuit)", "iHateYou", function(v) if v then COMBAT.ensureHook(); COMBAT.startIHateYou() else COMBAT.stopIHateYou() end end },
                     { "slider", "Pursuit Distance", "iHateYouDistance", 20, 210, 5, "studs" },
                     { "toggle", "Martini Sniper Vantage", "martiniVantage" },
                 }
@@ -3093,7 +3172,6 @@ end)
 -- Heartbeat Combat & Safety Dispatcher
 track(RunService.Heartbeat:Connect(function()
     if not S.running then return end
-    if S.silentAim or S.iHateYou then COMBAT.ensureHook() end
     checkSaintCorpse()
     stepSafety()
 end))
@@ -3111,6 +3189,7 @@ end)
 -- Startup Boot
 pcall(loadConfig)
 pcall(applyGenvConfig)
+task.spawn(COMBAT.ensureHook)
 initMiniHud()
 initBlackscreen()
 initMainWindow()
